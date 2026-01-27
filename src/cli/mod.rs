@@ -56,6 +56,15 @@ pub enum Commands {
         #[command(subcommand)]
         command: SetupCommands,
     },
+    /// Upgrade veto to the latest version
+    Upgrade {
+        /// Only check for updates, don't install
+        #[arg(long)]
+        check: bool,
+        /// Force reinstall even if already on latest version
+        #[arg(long)]
+        force: bool,
+    },
 }
 
 #[derive(Args)]

@@ -16,7 +16,7 @@ use auth::{
     manager::AsyncAuthBridge,
 };
 use executor::ShellExecutor;
-use commands::{run_init, run_doctor, run_auth_command, run_shell, run_setup_claude};
+use commands::{run_init, run_doctor, run_auth_command, run_shell, run_setup_claude, run_upgrade};
 
 fn main() {
     let cli = Cli::parse();
@@ -78,6 +78,12 @@ fn main() {
                         std::process::exit(1);
                     }
                 }
+            }
+        }
+        Commands::Upgrade { check, force } => {
+            if let Err(e) = run_upgrade(check, force) {
+                eprintln!("{} {}", "Error:".red(), e);
+                std::process::exit(1);
             }
         }
     }
@@ -205,42 +211,40 @@ fn run_gate(
         eprintln!("{} {}", "Risk:".bold(), level_colored);
     }
 
-    // Only require auth for High and Critical
-    let needs_auth = matches!(result.level, RiskLevel::High | RiskLevel::Critical);
-
-    if !needs_auth {
-        // Low/Medium/Allow - pass through
+    // Allow level always passes through without auth
+    if matches!(result.level, RiskLevel::Allow) {
         std::process::exit(0);
     }
 
-    // High-risk command detected
-    let reason = result.reason.as_deref().unwrap_or("High-risk operation");
-
-    // Determine auth method from config
-    // Priority: --auth flag > auth.levels[risk] > default > auto-select
+    // Check if auth is configured for this risk level
     let config = load_config().unwrap_or_default();
     let auth_methods: Vec<String> = if let Some(method) = auth_override.as_deref() {
         vec![method.to_string()]
     } else if let Some(auth_config) = &config.auth {
-        // Use AuthManager to get methods for this risk level
         let manager = AuthManager::new(auth_config.clone());
         let methods = manager.get_methods_for_level(&result.level.clone().into());
         if methods.is_empty() {
-            // Fall back to default or auto-select
             if let Some(default) = &auth_config.default {
                 vec![default.clone()]
             } else {
-                vec![auto_select_auth_method(&config)]
+                vec![] // No auth configured
             }
         } else {
             methods
         }
     } else {
-        vec![auto_select_auth_method(&config)]
+        vec![] // No auth config at all
     };
 
-    // For gate command, we use the first method (chains handled in run_exec)
+    // If no auth method configured for this level, pass through
+    if auth_methods.is_empty() {
+        std::process::exit(0);
+    }
+
     let primary_method: &str = &auth_methods[0];
+
+    // Command requires auth - get reason for display
+    let reason = result.reason.as_deref().unwrap_or("Operation requires verification");
 
     // Check if credentials were provided (CLI args, environment variables, or command prefix)
     let env_pin = std::env::var("VETO_PIN").ok()

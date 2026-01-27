@@ -52,6 +52,9 @@ serde_json = "1"
 # Timestamp for audit log
 chrono = "0.4"
 
+# Semantic versioning for upgrade command
+semver = "1"
+
 # macOS biometric auth uses osascript, no additional deps needed
 
 # File-based keyring fallback (for Docker/headless environments)
