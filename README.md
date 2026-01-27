@@ -222,15 +222,53 @@ veto init --force
 
 ## Development
 
+### Docker Commands
+
 ```bash
-# Run tests
+# Run all tests
 docker-compose run --rm test cargo test
+
+# Run specific tests
+docker-compose run --rm test cargo test rules
+docker-compose run --rm test cargo test auth
 
 # Build release
 docker-compose run --rm test cargo build --release
 
-# Interactive development
+# Interactive development shell
 docker-compose run --rm dev
+```
+
+### Interactive Development
+
+進入 Docker 容器進行互動式測試：
+
+```bash
+# 啟動開發環境
+docker-compose run --rm dev
+
+# 現在你在容器內的 /app 目錄
+# 可以執行以下命令：
+
+cargo build                           # 編譯
+cargo test                            # 測試
+./target/debug/veto --help           # 查看說明
+./target/debug/veto check "ls"       # 檢查命令風險
+./target/debug/veto check -v "rm -rf /" # 詳細風險資訊
+./target/debug/veto init             # 初始化設定
+./target/debug/veto doctor           # 診斷狀態
+
+# 離開容器
+exit
+```
+
+### Sandbox Testing
+
+安全測試危險命令（唯讀環境）：
+
+```bash
+docker-compose run --rm sandbox
+# 此環境為唯讀，可安全測試危險命令的風險評估
 ```
 
 ---
