@@ -1,6 +1,7 @@
 mod cli;
 mod config;
 mod rules;
+mod auth;
 
 use clap::Parser;
 use cli::{Cli, Commands};
