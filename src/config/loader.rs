@@ -9,6 +9,8 @@ pub enum ConfigError {
     ReadError(#[from] std::io::Error),
     #[error("Failed to parse config: {0}")]
     ParseError(#[from] toml::de::Error),
+    #[error("Failed to edit config: {0}")]
+    EditError(String),
 }
 
 pub fn get_config_dir() -> PathBuf {
@@ -32,6 +34,45 @@ pub fn load_config() -> Result<Config, ConfigError> {
     let content = std::fs::read_to_string(&config_path)?;
     let config: Config = toml::from_str(&content)?;
     Ok(config)
+}
+
+/// Update Telegram configuration in config.toml
+/// This preserves existing config and only updates/adds the telegram section
+pub fn update_telegram_config(chat_id: &str, timeout_seconds: Option<u32>) -> Result<(), ConfigError> {
+    let config_path = get_config_dir().join("config.toml");
+
+    let content = if config_path.exists() {
+        std::fs::read_to_string(&config_path)?
+    } else {
+        String::new()
+    };
+
+    // Parse as toml_edit to preserve formatting and comments
+    let mut doc = content.parse::<toml_edit::DocumentMut>()
+        .map_err(|e| ConfigError::EditError(e.to_string()))?;
+
+    // Ensure [auth] section exists
+    if !doc.contains_key("auth") {
+        doc["auth"] = toml_edit::Item::Table(toml_edit::Table::new());
+    }
+
+    // Get or create [auth.telegram] section
+    let auth = doc["auth"].as_table_mut().unwrap();
+    if !auth.contains_key("telegram") {
+        auth["telegram"] = toml_edit::Item::Table(toml_edit::Table::new());
+    }
+
+    let telegram = auth["telegram"].as_table_mut().unwrap();
+    telegram["enabled"] = toml_edit::value(true);
+    telegram["chat_id"] = toml_edit::value(chat_id);
+    if let Some(timeout) = timeout_seconds {
+        telegram["timeout_seconds"] = toml_edit::value(timeout as i64);
+    } else if !telegram.contains_key("timeout_seconds") {
+        telegram["timeout_seconds"] = toml_edit::value(60i64);
+    }
+
+    std::fs::write(&config_path, doc.to_string())?;
+    Ok(())
 }
 
 #[cfg(test)]

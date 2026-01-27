@@ -449,10 +449,18 @@ fn output_allowed(method: &str, claude_mode: bool) -> ! {
 /// Output blocked message - JSON for Claude mode, text for normal mode
 fn output_blocked(reason: &str, claude_mode: bool) -> ! {
     if claude_mode {
-        // Claude Code hooks: exit code 2 = blocking error
-        // This prevents Claude Code from showing its own confirmation dialog
-        eprintln!("{}", reason);
-        std::process::exit(2);
+        // Claude Code hooks: output JSON with deny decision and continue: false
+        // This tells Claude Code to stop completely without showing its own dialog
+        let json = serde_json::json!({
+            "hookSpecificOutput": {
+                "hookEventName": "PreToolUse",
+                "permissionDecision": "deny",
+                "permissionDecisionReason": reason
+            },
+            "continue": false
+        });
+        println!("{}", json);
+        std::process::exit(0);
     } else {
         // Normal mode: text message with exit code 2 (blocking)
         eprintln!("{}", reason.red());

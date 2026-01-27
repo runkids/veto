@@ -87,12 +87,31 @@ impl TelegramAuth {
     }
 
     /// Poll for updates and check for /allow or /deny response
-    async fn wait_for_response(&self, token: &str, _after_message_id: i64) -> Result<bool, AuthError> {
+    /// Only processes messages received AFTER request_time
+    async fn wait_for_response(&self, token: &str, request_time: i64) -> Result<bool, AuthError> {
         let url = format!("{}{}/getUpdates", TELEGRAM_API_BASE, token);
         let client = reqwest::Client::new();
 
         let start = std::time::Instant::now();
         let mut last_update_id: Option<i64> = None;
+
+        // First, clear any old updates by getting the latest update_id
+        let init_response = client
+            .post(&url)
+            .json(&serde_json::json!({ "limit": 1, "offset": -1 }))
+            .send()
+            .await
+            .ok();
+
+        if let Some(resp) = init_response {
+            if let Ok(result) = resp.json::<TelegramResponse<Vec<Update>>>().await {
+                if let Some(updates) = result.result {
+                    if let Some(last) = updates.last() {
+                        last_update_id = Some(last.update_id);
+                    }
+                }
+            }
+        }
 
         while start.elapsed() < self.timeout {
             let request = GetUpdatesRequest {
@@ -115,20 +134,23 @@ impl TelegramAuth {
 
             if let Some(updates) = result.result {
                 for update in updates {
-                    if let Some(id) = Some(update.update_id) {
-                        last_update_id = Some(id);
-                    }
+                    last_update_id = Some(update.update_id);
 
                     if let Some(msg) = update.message {
-                        // Only process messages from the correct chat and after our request
+                        // Only process messages from the correct chat
+                        // and received after our request was sent
                         if msg.chat.id.to_string() == self.chat_id {
-                            if let Some(text) = msg.text {
-                                let text_lower = text.to_lowercase();
-                                if text_lower.starts_with("/allow") || text_lower == "allow" || text_lower == "yes" {
-                                    return Ok(true);
-                                }
-                                if text_lower.starts_with("/deny") || text_lower == "deny" || text_lower == "no" {
-                                    return Ok(false);
+                            // Check message timestamp (msg.date is unix timestamp)
+                            let msg_time = msg.date.unwrap_or(0);
+                            if msg_time >= request_time {
+                                if let Some(text) = msg.text {
+                                    let text_lower = text.to_lowercase();
+                                    if text_lower.starts_with("/allow") || text_lower == "allow" || text_lower == "yes" {
+                                        return Ok(true);
+                                    }
+                                    if text_lower.starts_with("/deny") || text_lower == "deny" || text_lower == "no" {
+                                        return Ok(false);
+                                    }
                                 }
                             }
                         }
@@ -156,6 +178,12 @@ impl AsyncAuthenticator for TelegramAuth {
 
         let token = Self::get_token()?;
 
+        // Record current time before sending (for filtering old messages)
+        let request_time = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs() as i64)
+            .unwrap_or(0);
+
         // Send approval request
         let message = format!(
             "🔐 <b>Veto Authorization Request</b>\n\n\
@@ -164,23 +192,23 @@ impl AsyncAuthenticator for TelegramAuth {
             html_escape(command)
         );
 
-        let msg_id = self.send_message(&token, &message).await?;
+        let _msg_id = self.send_message(&token, &message).await?;
 
-        println!("Sent request to Telegram. Waiting for response (timeout: {}s)...",
+        eprintln!("Sent request to Telegram. Waiting for response (timeout: {}s)...",
             self.timeout.as_secs());
 
-        // Wait for response
-        match self.wait_for_response(&token, msg_id).await {
+        // Wait for response (only process messages after request_time)
+        match self.wait_for_response(&token, request_time).await {
             Ok(true) => {
-                println!("{}", "✓ Approved via Telegram".green());
+                eprintln!("{}", "✓ Approved via Telegram".green());
                 Ok(true)
             }
             Ok(false) => {
-                println!("{}", "✗ Denied via Telegram".red());
+                eprintln!("{}", "✗ Denied via Telegram".red());
                 Err(AuthError::Cancelled)
             }
             Err(AuthError::Timeout) => {
-                println!("{}", "✗ Telegram response timeout".red());
+                eprintln!("{}", "✗ Telegram response timeout".red());
                 // Send timeout notification
                 let _ = self.send_message(&token, "⏱️ Authorization request timed out.").await;
                 Err(AuthError::Timeout)
@@ -219,6 +247,7 @@ struct Message {
     message_id: i64,
     chat: Chat,
     text: Option<String>,
+    date: Option<i64>,
 }
 
 #[derive(Deserialize)]

@@ -49,30 +49,83 @@ veto auth test touchid
 
 ### Telegram
 
+Telegram authentication sends approval requests to your phone. You approve or deny commands remotely via `/allow` or `/deny`.
+
+#### Why Bot is Required
+
+| Method | Send Message | Receive Reply | Works for veto |
+|--------|--------------|---------------|----------------|
+| Bot | ✅ | ✅ `/allow` `/deny` | ✅ |
+| Channel | ✅ | ❌ Broadcast only | ❌ |
+| Group | ✅ | ⚠️ Complex | ❌ |
+
+Telegram Bot API is the only official way for programs to interact with users.
+
+#### Step 1: Create a Bot (1 minute)
+
+1. Open Telegram and search for **@BotFather**
+2. Send `/newbot`
+3. Enter a name for your bot: `Veto Auth`
+4. Enter a username: `yourname_veto_bot` (must end with `_bot`)
+5. **Copy the bot token** (looks like `123456789:ABCdefGHI-jklMNOpqrSTUvwxYZ`)
+
+#### Step 2: Get Your Chat ID
+
+1. Search for **@userinfobot** in Telegram
+2. Send any message to it
+3. **Copy your chat ID** (a number like `123456789`)
+
+#### Step 3: Configure veto
+
 ```bash
+# Store the bot token
 veto auth setup-telegram
-# 1. Create bot via @BotFather
-# 2. Enter bot token: ***
-# 3. Get chat_id via @userinfobot
+# Enter bot token: [paste your token]
 # ✓ Telegram bot token stored!
 ```
 
-Then configure `~/.veto/config.toml`:
+Then add chat_id to `~/.veto/config.toml`:
 
 ```toml
 [auth.telegram]
 enabled = true
-chat_id = "YOUR_CHAT_ID"
-timeout_seconds = 60
+chat_id = "123456789"        # Your chat ID from @userinfobot
+timeout_seconds = 60         # How long to wait for response
 ```
 
-#### Telegram Bot Setup
+#### Step 4: Start Your Bot
 
-1. Open Telegram and search for `@BotFather`
-2. Send `/newbot` and follow the prompts
-3. Copy the bot token
-4. Get your chat_id from `@userinfobot`
-5. Run `veto auth setup-telegram` and enter the token
+**Important:** You must start a conversation with your bot before it can send you messages.
+
+1. Search for your bot by its username (e.g., `@yourname_veto_bot`)
+2. Click **Start** or send `/start`
+
+#### Step 5: Test
+
+```bash
+veto auth test telegram
+# Command: veto auth test
+# Waiting for Telegram approval...
+# [Check your Telegram - you should receive a message]
+# Reply with /allow or /deny
+```
+
+#### Usage
+
+When veto requires Telegram authentication:
+
+```
+🔐 Veto Authorization Request
+
+Command:
+rm -rf node_modules
+
+Reply with /allow or /deny
+```
+
+Reply with:
+- `/allow` or `allow` or `yes` — Approve the command
+- `/deny` or `deny` or `no` — Reject the command
 
 ## Verify Setup
 

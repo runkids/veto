@@ -166,6 +166,8 @@ fn run_setup_totp(account: &str) -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn run_setup_telegram() -> Result<(), Box<dyn std::error::Error>> {
+    use crate::config::loader::update_telegram_config;
+
     println!("{}", "Setting up Telegram authentication".cyan().bold());
     println!();
 
@@ -184,13 +186,16 @@ fn run_setup_telegram() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    println!("To set up Telegram authentication:");
-    println!("1. Create a bot via @BotFather on Telegram");
-    println!("2. Get the bot token");
-    println!("3. Start a chat with your bot");
-    println!("4. Get your chat ID (use @userinfobot)");
+    println!("You need a Telegram bot token from @BotFather.");
+    println!();
+    println!("If you don't have one yet:");
+    println!("  1. Open Telegram and search for {}", "@BotFather".cyan());
+    println!("  2. Send {}", "/newbot".cyan());
+    println!("  3. Follow the prompts to create your bot");
+    println!("  4. Copy the bot token");
     println!();
 
+    // Get bot token
     let token: String = Password::new()
         .with_prompt("Enter bot token")
         .interact()?;
@@ -199,21 +204,139 @@ fn run_setup_telegram() -> Result<(), Box<dyn std::error::Error>> {
         return Err("Bot token cannot be empty".into());
     }
 
-    // Store token
+    // Verify token and get bot info
+    println!();
+    println!("{}", "Verifying bot token...".cyan());
+
+    let rt = tokio::runtime::Runtime::new()?;
+    let bot_name = rt.block_on(verify_bot_token(&token))?;
+
+    println!("{} Bot verified: @{}", "✓".green(), bot_name);
+    println!();
+
+    // Clear old updates first
+    let _ = rt.block_on(clear_updates(&token));
+
+    // Now ask user to send a message to the bot
+    println!();
+    println!("{}", "Next step:".yellow().bold());
+    println!("  Open Telegram and send any message to {}", format!("@{}", bot_name).cyan());
+    println!();
+    println!("{}", "Waiting for your message...".cyan());
+
+    // Wait for new message with timeout
+    let chat_id = rt.block_on(wait_for_message(&token, 60))?;
+
+    println!("{} Chat ID found: {}", "✓".green(), chat_id);
+
+    // Store token in keychain
     TelegramAuth::setup(&token)?;
 
+    // Update config.toml with chat_id
+    update_telegram_config(&chat_id, Some(60))?;
+
     println!();
-    println!("{}", "✓ Telegram bot token stored!".green());
+    println!("{}", "✓ Telegram configured successfully!".green());
     println!();
-    println!("{}", "Next step:".bold());
-    println!("Configure your chat_id in config.toml:");
-    println!();
-    println!("  [auth.telegram]");
-    println!("  enabled = true");
-    println!("  chat_id = \"YOUR_CHAT_ID\"");
-    println!();
+    println!("Test with: {}", "veto auth test telegram".cyan());
 
     Ok(())
+}
+
+/// Verify bot token and return bot username
+async fn verify_bot_token(token: &str) -> Result<String, Box<dyn std::error::Error>> {
+    let url = format!("https://api.telegram.org/bot{}/getMe", token);
+    let client = reqwest::Client::new();
+
+    let response = client.get(&url).send().await?;
+    let result: serde_json::Value = response.json().await?;
+
+    if result["ok"].as_bool() != Some(true) {
+        let desc = result["description"].as_str().unwrap_or("Invalid token");
+        return Err(format!("Bot token verification failed: {}", desc).into());
+    }
+
+    let username = result["result"]["username"]
+        .as_str()
+        .ok_or("Could not get bot username")?;
+
+    Ok(username.to_string())
+}
+
+/// Clear old updates by fetching with a high offset
+async fn clear_updates(token: &str) -> Result<(), Box<dyn std::error::Error>> {
+    let url = format!("https://api.telegram.org/bot{}/getUpdates", token);
+    let client = reqwest::Client::new();
+
+    // First get the latest update_id
+    let response = client
+        .post(&url)
+        .json(&serde_json::json!({ "limit": 1, "offset": -1 }))
+        .send()
+        .await?;
+
+    let result: serde_json::Value = response.json().await?;
+
+    if let Some(updates) = result["result"].as_array() {
+        if let Some(last_update) = updates.last() {
+            if let Some(update_id) = last_update["update_id"].as_i64() {
+                // Mark all updates as read by setting offset to update_id + 1
+                let _ = client
+                    .post(&url)
+                    .json(&serde_json::json!({ "offset": update_id + 1, "limit": 1 }))
+                    .send()
+                    .await;
+            }
+        }
+    }
+
+    Ok(())
+}
+
+/// Wait for a new message and return the chat_id
+async fn wait_for_message(token: &str, timeout_secs: u64) -> Result<String, Box<dyn std::error::Error>> {
+    let url = format!("https://api.telegram.org/bot{}/getUpdates", token);
+    let client = reqwest::Client::new();
+
+    let start = std::time::Instant::now();
+    let timeout = std::time::Duration::from_secs(timeout_secs);
+
+    while start.elapsed() < timeout {
+        let response = client
+            .post(&url)
+            .json(&serde_json::json!({
+                "timeout": 5,
+                "limit": 1
+            }))
+            .timeout(std::time::Duration::from_secs(10))
+            .send()
+            .await?;
+
+        let result: serde_json::Value = response.json().await?;
+
+        if let Some(updates) = result["result"].as_array() {
+            if let Some(update) = updates.first() {
+                // Mark as read
+                if let Some(update_id) = update["update_id"].as_i64() {
+                    let _ = client
+                        .post(&url)
+                        .json(&serde_json::json!({ "offset": update_id + 1 }))
+                        .send()
+                        .await;
+                }
+
+                // Get chat_id
+                if let Some(chat_id) = update["message"]["chat"]["id"].as_i64() {
+                    return Ok(chat_id.to_string());
+                }
+            }
+        }
+
+        // Small delay before next poll
+        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+    }
+
+    Err("Timeout waiting for message. Please try again and send a message to your bot.".into())
 }
 
 fn run_test(method: &str) -> Result<(), Box<dyn std::error::Error>> {
