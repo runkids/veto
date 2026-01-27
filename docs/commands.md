@@ -10,6 +10,7 @@
 | `veto shell` | Interactive protected shell |
 | `veto init` | Create default config |
 | `veto doctor` | Diagnose installation |
+| `veto upgrade` | Self-update to latest version |
 
 ## Setup Commands
 
@@ -39,6 +40,8 @@
 | `--claude` | Read command from Claude Code stdin JSON (gate only) |
 | `--totp <code>` | Pass TOTP code directly (gate only) |
 | `--pin <code>` | Pass PIN directly (gate only) |
+| `--check` | Only check for updates (upgrade only) |
+| `--force` | Force reinstall even if latest (upgrade only) |
 
 ## Exit Codes
 
@@ -109,3 +112,20 @@ veto ~/project $ rm -rf node_modules
 ```
 
 Shell built-ins: `cd`, `pwd`, `help`, `exit`
+
+### Self-Update
+
+```bash
+# Check for updates
+veto upgrade --check
+# Current version: 0.1.0
+# Latest version: 0.1.1
+# Update available: 0.1.0 → 0.1.1
+# Run 'veto upgrade' to install the update.
+
+# Install latest version
+veto upgrade
+
+# Force reinstall (even if already latest)
+veto upgrade --force
+```
