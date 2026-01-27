@@ -27,6 +27,39 @@ AI coding assistants execute shell commands autonomously. **veto adds a safety l
 | `cat .env` | Secrets exposed | **HIGH** — flags sensitive file access |
 | `npm install` | Runs without notice | **MEDIUM** — logged, confirmation |
 | Audit trail | None | **Every command logged** with risk level |
+| Custom rules | — | **Define your own** patterns and risk levels |
+
+---
+
+## Custom Rules
+
+Add your own rules in `~/.veto/rules.toml`:
+
+```toml
+# Protect sensitive files from being read
+[[critical]]
+category = "secrets"
+patterns = [
+    "cat *.env*",
+    "cat *secret*",
+    "cat *password*",
+    "cat ~/.ssh/id_*",
+    "cat *credentials*",
+]
+reason = "Sensitive file access"
+
+# Block destructive database operations
+[[critical]]
+category = "database-destructive"
+patterns = ["DROP DATABASE*", "DROP TABLE*", "TRUNCATE*"]
+reason = "Destructive database operation"
+
+# Whitelist safe commands
+[whitelist]
+commands = ["docker ps*", "kubectl get pods*", "git status*"]
+```
+
+[→ Full rules documentation](docs/rules.md)
 
 ---
 
