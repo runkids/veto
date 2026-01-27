@@ -1,0 +1,25 @@
+# Binary
+/bin/
+/dist/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Test
+coverage.out
+.claude/
+AGENTS.md
+CLAUDE.md
+docs/plans/
+
+# Worktrees
+.worktrees/
+
+video/node_modules/
