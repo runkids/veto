@@ -3,6 +3,7 @@ mod config;
 mod rules;
 mod auth;
 mod executor;
+mod commands;
 
 use clap::Parser;
 use colored::Colorize;
@@ -10,6 +11,7 @@ use cli::{Cli, Commands};
 use rules::{RulesEngine, RiskLevel, default_rules};
 use auth::{Authenticator, ConfirmAuth};
 use executor::ShellExecutor;
+use commands::{run_init, run_doctor};
 
 fn main() {
     let cli = Cli::parse();
@@ -23,10 +25,13 @@ fn main() {
             run_exec(&engine, &command, cli.verbose);
         }
         Commands::Init { force } => {
-            println!("Init (force={})", force);
+            if let Err(e) = run_init(force) {
+                eprintln!("{} {}", "Error:".red(), e);
+                std::process::exit(1);
+            }
         }
         Commands::Doctor => {
-            println!("Running doctor...");
+            run_doctor();
         }
         Commands::Shell => {
             println!("Starting shell...");
