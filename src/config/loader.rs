@@ -5,8 +5,6 @@ use super::Config;
 
 #[derive(Error, Debug)]
 pub enum ConfigError {
-    #[error("Config file not found: {0}")]
-    NotFound(PathBuf),
     #[error("Failed to read config: {0}")]
     ReadError(#[from] std::io::Error),
     #[error("Failed to parse config: {0}")]
@@ -14,9 +12,14 @@ pub enum ConfigError {
 }
 
 pub fn get_config_dir() -> PathBuf {
-    dirs::config_dir()
-        .unwrap_or_else(|| PathBuf::from("."))
-        .join("veto")
+    // Use VETO_HOME or ~/.veto
+    std::env::var("VETO_HOME")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| {
+            dirs::home_dir()
+                .unwrap_or_else(|| PathBuf::from("."))
+                .join(".veto")
+        })
 }
 
 pub fn load_config() -> Result<Config, ConfigError> {

@@ -5,8 +5,6 @@ use thiserror::Error;
 pub enum ExecError {
     #[error("Failed to spawn process: {0}")]
     SpawnFailed(#[from] std::io::Error),
-    #[error("Process terminated with non-zero exit code: {0}")]
-    NonZeroExit(i32),
 }
 
 pub struct ShellExecutor {
@@ -31,14 +29,6 @@ impl ShellExecutor {
         Ok(status)
     }
 
-    pub fn execute_capture(&self, command: &str) -> Result<String, ExecError> {
-        let output = Command::new(&self.shell)
-            .arg("-c")
-            .arg(command)
-            .output()?;
-
-        Ok(String::from_utf8_lossy(&output.stdout).to_string())
-    }
 }
 
 impl Default for ShellExecutor {
@@ -50,13 +40,6 @@ impl Default for ShellExecutor {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_execute_simple_command() {
-        let executor = ShellExecutor::new();
-        let output = executor.execute_capture("echo hello").unwrap();
-        assert_eq!(output.trim(), "hello");
-    }
 
     #[test]
     fn test_execute_with_exit_code() {

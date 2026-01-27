@@ -22,15 +22,14 @@ services:
     command: /bin/bash
 
   # Safe sandbox for testing veto with dangerous commands
-  # Run `make release` first, then use sandbox
+  # Run: make sandbox
   sandbox:
     build: .
     container_name: veto-sandbox
     environment:
       - TERM=xterm-256color
-      - PATH=/app/target/release:/usr/local/cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
     volumes:
-      - target-cache:/app/target:ro
+      - ./target/release/veto:/usr/local/bin/veto:ro
     tmpfs:
       - /tmp
     security_opt:

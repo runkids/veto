@@ -14,8 +14,47 @@ glob = "0.3"
 regex = "1"
 colored = "2"
 dialoguer = "0.11"
+rustyline = "15"
 dirs = "5"
 thiserror = "1"
+
+# Async runtime
+tokio = { version = "1", features = ["rt-multi-thread", "time", "sync"] }
+
+# HTTP client (Telegram)
+reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
+
+# TOTP
+totp-rs = { version = "5", features = ["gen_secret", "otpauth"] }
+
+# Async trait
+async-trait = "0.1"
+
+# PIN hashing
+argon2 = "0.5"
+
+# System Keychain (secrets storage)
+keyring = "3"
+
+# Random for salt generation
+rand = "0.8"
+
+# Base32 encoding for TOTP
+data-encoding = "2"
+
+# QR code generation
+qrcode = "0.14"
+
+# JSON parsing (Claude Code stdin)
+serde_json = "1"
+
+# macOS biometric auth uses osascript, no additional deps needed
+
+# File-based keyring fallback (for Docker/headless environments)
+aes-gcm = "0.10"
+pbkdf2 = { version = "0.12", features = ["simple"] }
+sha2 = "0.10"
+hostname = "0.4"
 
 [dev-dependencies]
 tempfile = "3"

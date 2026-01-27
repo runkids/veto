@@ -8,7 +8,16 @@ const DEFAULT_CONFIG: &str = r#"# Veto Configuration
 # AI operation guardian - verify before execute
 
 [auth]
-# Default authentication method: "confirm", "pin", "touchid", "telegram", "totp"
+# Default authentication method: "confirm", "pin", "touchid", "telegram", "totp", "dialog"
+#
+# For Claude Code hooks, recommended methods:
+#   - touchid: Touch ID prompt (macOS, works directly in hook)
+#   - dialog:  macOS dialog box (works directly in hook)
+#   - totp:    Time-based OTP (AI asks in chat, retry with VETO_TOTP=<code>)
+#   - pin:     PIN code (AI asks in chat, retry with VETO_PIN=<code>)
+#   - confirm: Simple yes/no (AI asks in chat, retry with VETO_CONFIRM=yes)
+#   - telegram: Telegram bot approval (works directly in hook)
+#
 default = "confirm"
 
 # Authentication levels for different risk levels
@@ -23,10 +32,18 @@ default = "confirm"
 # enabled = true
 # prompt = "Authorize veto operation"
 
-# PIN configuration
+# PIN configuration - set via: veto auth set-pin
 # [auth.pin]
 # enabled = true
-# hash = ""  # Set via `veto config set-pin`
+
+# TOTP configuration - set via: veto auth setup-totp
+# [auth.totp]
+# enabled = true
+
+# Telegram configuration - set via: veto auth setup-telegram
+# [auth.telegram]
+# chat_id = "123456789"
+# timeout_seconds = 60
 "#;
 
 const DEFAULT_RULES: &str = r#"# Veto Rules Configuration

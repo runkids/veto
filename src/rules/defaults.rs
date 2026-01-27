@@ -31,6 +31,17 @@ pub fn default_rules() -> Rules {
         ],
         high: vec![
             Rule {
+                category: "rm-recursive-force".to_string(),
+                patterns: vec![
+                    "rm -rf *".to_string(),
+                    "rm -fr *".to_string(),
+                    "rm * -rf".to_string(),
+                    "rm * -fr".to_string(),
+                ],
+                paths: vec![],
+                reason: Some("Recursive force delete".to_string()),
+            },
+            Rule {
                 category: "secrets".to_string(),
                 patterns: vec![
                     "cat *.env*".to_string(),
@@ -54,6 +65,17 @@ pub fn default_rules() -> Rules {
             },
         ],
         medium: vec![
+            Rule {
+                category: "rm-recursive".to_string(),
+                patterns: vec![
+                    "rm -r *".to_string(),
+                    "rm * -r".to_string(),
+                    "rm -R *".to_string(),
+                    "rm * -R".to_string(),
+                ],
+                paths: vec![],
+                reason: Some("Recursive delete".to_string()),
+            },
             Rule {
                 category: "git".to_string(),
                 patterns: vec![
@@ -79,6 +101,14 @@ pub fn default_rules() -> Rules {
             },
         ],
         low: vec![
+            Rule {
+                category: "rm".to_string(),
+                patterns: vec![
+                    "rm *".to_string(),
+                ],
+                paths: vec![],
+                reason: Some("File deletion".to_string()),
+            },
             Rule {
                 category: "network".to_string(),
                 patterns: vec![

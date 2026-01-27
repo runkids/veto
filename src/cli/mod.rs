@@ -1,4 +1,5 @@
-use clap::{Parser, Subcommand};
+use clap::{Args, Parser, Subcommand};
+use crate::commands::AuthCommands;
 
 #[derive(Parser)]
 #[command(name = "veto")]
@@ -28,7 +29,13 @@ pub enum Commands {
     Exec {
         /// Command to execute
         command: String,
+
+        /// Override authentication method
+        #[arg(long)]
+        auth: Option<String>,
     },
+    /// Gate command (verify only, no execute) - for use in hooks
+    Gate(GateArgs),
     /// Initialize config files
     Init {
         /// Overwrite existing config
@@ -39,4 +46,46 @@ pub enum Commands {
     Doctor,
     /// Start interactive shell wrapper
     Shell,
+    /// Manage authentication methods
+    Auth {
+        #[command(subcommand)]
+        command: AuthCommands,
+    },
+    /// Setup integrations with AI tools
+    Setup {
+        #[command(subcommand)]
+        command: SetupCommands,
+    },
+}
+
+#[derive(Args)]
+pub struct GateArgs {
+    /// Command to verify (optional if using --claude)
+    pub command: Option<String>,
+
+    /// Read command from Claude Code stdin JSON format
+    #[arg(long, conflicts_with = "command")]
+    pub claude: bool,
+
+    /// Override authentication method
+    #[arg(long)]
+    pub auth: Option<String>,
+
+    /// TOTP code for verification
+    #[arg(long)]
+    pub totp: Option<String>,
+
+    /// PIN for verification
+    #[arg(long)]
+    pub pin: Option<String>,
+}
+
+#[derive(Subcommand)]
+pub enum SetupCommands {
+    /// Setup Claude Code hooks integration
+    Claude {
+        /// Remove veto hooks from Claude Code
+        #[arg(long)]
+        uninstall: bool,
+    },
 }

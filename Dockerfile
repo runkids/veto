@@ -1,5 +1,5 @@
 # Dockerfile
-FROM rust:1.82-slim-bookworm
+FROM rust:latest
 
 # Install dependencies
 RUN apt-get update && apt-get install -y \

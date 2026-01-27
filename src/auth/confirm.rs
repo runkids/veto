@@ -17,16 +17,12 @@ impl Default for ConfirmAuth {
 }
 
 impl Authenticator for ConfirmAuth {
-    fn name(&self) -> &'static str {
-        "confirm"
-    }
-
     fn is_available(&self) -> bool {
         true
     }
 
     fn authenticate(&self, command: &str) -> AuthResult {
-        println!("{} {}", "Command:".yellow(), command);
+        eprintln!("{} {}", "Command:".yellow(), command);
 
         let confirmed = Confirm::new()
             .with_prompt("Allow this operation?")
@@ -50,6 +46,5 @@ mod tests {
     fn test_confirm_available() {
         let auth = ConfirmAuth::new();
         assert!(auth.is_available());
-        assert_eq!(auth.name(), "confirm");
     }
 }
