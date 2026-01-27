@@ -271,15 +271,11 @@ fn run_gate(
                 }
                 // TOTP configured - ask for code
                 if claude_mode {
-                    eprintln!("[veto] High-risk command blocked. Ask user in chat for their TOTP code. If provided, retry command with VETO_TOTP=<code> prefix.");
+                    eprintln!("[veto] {} command blocked. Ask user in chat for their TOTP code. If provided, retry command with VETO_TOTP=<code> prefix.", risk_level_str(&result.level));
                     std::process::exit(2);
                 } else {
                     eprintln!("{}", "⚠️  AUTH_REQUIRED".red().bold());
-                    eprintln!("risk_level: {}", match result.level {
-                        RiskLevel::High => "HIGH",
-                        RiskLevel::Critical => "CRITICAL",
-                        _ => "UNKNOWN",
-                    });
+                    eprintln!("risk_level: {}", risk_level_str(&result.level));
                     eprintln!("reason: {}", reason);
                     eprintln!("command: {}", command);
                     eprintln!("auth_method: totp");
@@ -299,15 +295,11 @@ fn run_gate(
                 }
                 // PIN configured - ask for code
                 if claude_mode {
-                    eprintln!("[veto] High-risk command blocked. Ask user in chat for their PIN code. If provided, retry command with VETO_PIN=<code> prefix.");
+                    eprintln!("[veto] {} command blocked. Ask user in chat for their PIN code. If provided, retry command with VETO_PIN=<code> prefix.", risk_level_str(&result.level));
                     std::process::exit(2);
                 } else {
                     eprintln!("{}", "⚠️  AUTH_REQUIRED".red().bold());
-                    eprintln!("risk_level: {}", match result.level {
-                        RiskLevel::High => "HIGH",
-                        RiskLevel::Critical => "CRITICAL",
-                        _ => "UNKNOWN",
-                    });
+                    eprintln!("risk_level: {}", risk_level_str(&result.level));
                     eprintln!("reason: {}", reason);
                     eprintln!("command: {}", command);
                     eprintln!("auth_method: pin");
@@ -388,7 +380,7 @@ fn run_gate(
 
                 if claude_mode {
                     // Deny but tell AI how to retry with user confirmation
-                    eprintln!("[veto] High-risk command blocked. Ask user in chat: \"Do you want to allow `{}`?\" If YES, retry command with VETO_CONFIRM=yes prefix.", eval_command);
+                    eprintln!("[veto] {} command blocked. Ask user in chat: \"Do you want to allow `{}`?\" If YES, retry command with VETO_CONFIRM=yes prefix.", risk_level_str(&result.level), eval_command);
                     std::process::exit(2);
                 } else {
                     // Terminal mode: interactive confirmation
@@ -430,6 +422,17 @@ fn run_gate(
         output_allowed(eval_command, &result.level, method, claude_mode);
     } else {
         output_blocked(eval_command, &result.level, "Verification failed", claude_mode);
+    }
+}
+
+/// Convert risk level to display string
+fn risk_level_str(level: &RiskLevel) -> &'static str {
+    match level {
+        RiskLevel::Allow => "ALLOW",
+        RiskLevel::Low => "LOW",
+        RiskLevel::Medium => "MEDIUM",
+        RiskLevel::High => "HIGH",
+        RiskLevel::Critical => "CRITICAL",
     }
 }
 
