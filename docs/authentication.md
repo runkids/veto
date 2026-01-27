@@ -112,16 +112,19 @@ veto auth test telegram
 
 #### Usage
 
-When veto requires Telegram authentication:
+When veto requires Telegram authentication, you'll receive a message like this:
 
-```
-🔐 Veto Authorization Request
+![Telegram authorization request](assets/tgmsg.png)
 
-Command:
-rm -rf node_modules
+Reply with `/allow` or `/deny`:
 
-Reply with /allow or /deny
-```
+![Telegram reply options](assets/tganswer.png)
+
+#### Claude Code Integration
+
+When using with Claude Code, the AI will wait for your Telegram approval:
+
+![Claude Code waiting for Telegram approval](assets/tgwithclaude.png)
 
 Reply with:
 - `/allow` or `allow` or `yes` — Approve the command
