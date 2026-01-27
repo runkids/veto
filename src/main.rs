@@ -9,7 +9,7 @@ mod audit;
 use clap::Parser;
 use colored::Colorize;
 use cli::{Cli, Commands, SetupCommands};
-use config::loader::load_config;
+use config::{loader::load_config, Config};
 use rules::{RulesEngine, RiskLevel, default_rules};
 use auth::{
     Authenticator, AuthManager, ConfirmAuth, PinAuth, TotpAuth, TouchIdAuth, TelegramAuth, DialogAuth,
@@ -216,30 +216,31 @@ fn run_gate(
     // High-risk command detected
     let reason = result.reason.as_deref().unwrap_or("High-risk operation");
 
-    // Determine auth method from config or available methods
-    // Priority: --auth flag > default > auto-select
+    // Determine auth method from config
+    // Priority: --auth flag > auth.levels[risk] > default > auto-select
     let config = load_config().unwrap_or_default();
-    let primary_method: &str = if let Some(method) = auth_override.as_deref() {
-        method
-    } else if let Some(pref) = config.auth.as_ref().and_then(|a| a.default.as_deref()) {
-        pref
-    } else {
-        // Auto-select: prefer interactive methods that work in hook context
-        // Priority: telegram > touchid > dialog > totp > pin > confirm
-        if config.auth.as_ref().and_then(|a| a.telegram.as_ref()).and_then(|t| t.chat_id.as_ref()).is_some() {
-            "telegram"
-        } else if TouchIdAuth::new().is_available() {
-            "touchid"
-        } else if cfg!(target_os = "macos") {
-            "dialog"
-        } else if TotpAuth::new().is_available() {
-            "totp"
-        } else if PinAuth::new().is_available() {
-            "pin"
+    let auth_methods: Vec<String> = if let Some(method) = auth_override.as_deref() {
+        vec![method.to_string()]
+    } else if let Some(auth_config) = &config.auth {
+        // Use AuthManager to get methods for this risk level
+        let manager = AuthManager::new(auth_config.clone());
+        let methods = manager.get_methods_for_level(&result.level.clone().into());
+        if methods.is_empty() {
+            // Fall back to default or auto-select
+            if let Some(default) = &auth_config.default {
+                vec![default.clone()]
+            } else {
+                vec![auto_select_auth_method(&config)]
+            }
         } else {
-            "confirm"
+            methods
         }
+    } else {
+        vec![auto_select_auth_method(&config)]
     };
+
+    // For gate command, we use the first method (chains handled in run_exec)
+    let primary_method: &str = &auth_methods[0];
 
     // Check if credentials were provided (CLI args, environment variables, or command prefix)
     let env_pin = std::env::var("VETO_PIN").ok()
@@ -656,4 +657,26 @@ fn run_auth_chain(methods: &[String], command: &str) -> Result<(), Box<dyn std::
     }
 
     Ok(())
+}
+
+/// Auto-select best available auth method
+fn auto_select_auth_method(config: &Config) -> String {
+    // Priority: telegram > touchid > dialog > totp > pin > confirm
+    if config.auth.as_ref()
+        .and_then(|a| a.telegram.as_ref())
+        .and_then(|t| t.chat_id.as_ref())
+        .is_some()
+    {
+        "telegram".to_string()
+    } else if TouchIdAuth::new().is_available() {
+        "touchid".to_string()
+    } else if cfg!(target_os = "macos") {
+        "dialog".to_string()
+    } else if TotpAuth::new().is_available() {
+        "totp".to_string()
+    } else if PinAuth::new().is_available() {
+        "pin".to_string()
+    } else {
+        "confirm".to_string()
+    }
 }

@@ -8,6 +8,7 @@ Config files are stored in `~/.veto/`:
 ~/.veto/
 ├── config.toml    # Auth settings
 ├── rules.toml     # Custom rules (optional)
+├── audit.log      # Command audit trail
 └── secrets/       # Encrypted secrets (fallback)
 ```
 
@@ -125,6 +126,35 @@ timeout_seconds = 60            # Wait time for /allow or /deny
 | `enabled` | bool | Enable Telegram authentication |
 | `chat_id` | string | Your Telegram user ID |
 | `timeout_seconds` | int | Timeout for approval (default: 60) |
+
+## Audit Log
+
+All high-risk command decisions are logged to `~/.veto/audit.log`:
+
+```
+[2026-01-28 03:01:17] DENIED CRITICAL - "rm -rf /tmp/test"
+[2026-01-28 03:01:55] ALLOWED CRITICAL Telegram "rm -rf /tmp/test2"
+[2026-01-28 03:05:23] ALLOWED HIGH PIN "git push -f origin main"
+```
+
+### Log Format
+
+```
+[timestamp] RESULT RISK auth_method "command"
+```
+
+| Field | Values |
+|-------|--------|
+| RESULT | `ALLOWED`, `DENIED` |
+| RISK | `CRITICAL`, `HIGH`, `MEDIUM`, `LOW` |
+| auth_method | `Telegram`, `PIN`, `TOTP`, `Touch ID`, `confirm`, `-` |
+
+### View Audit Log
+
+```bash
+cat ~/.veto/audit.log
+tail -f ~/.veto/audit.log  # Live monitoring
+```
 
 ## Verify Configuration
 

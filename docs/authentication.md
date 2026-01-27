@@ -180,7 +180,9 @@ For critical operations, require multiple factors:
 critical = ["totp", "telegram"]  # Must pass BOTH
 ```
 
-Execution flow:
+**Note:** Chain authentication only works with `veto exec` (terminal mode). In hook mode (`veto gate`), only the first method is used.
+
+Execution flow (`veto exec`):
 ```
 1. User runs: veto exec "rm -rf /"
 2. veto: Risk = CRITICAL
