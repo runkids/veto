@@ -4,6 +4,7 @@ mod rules;
 mod auth;
 mod executor;
 mod commands;
+mod audit;
 
 use clap::Parser;
 use colored::Colorize;
@@ -316,10 +317,10 @@ fn run_gate(
                 let auth = DialogAuth::new();
                 match auth.authenticate(command) {
                     Ok(true) => {
-                        output_allowed("dialog", claude_mode);
+                        output_allowed(eval_command, &result.level, "dialog", claude_mode);
                     }
                     _ => {
-                        output_blocked("User cancelled via dialog", claude_mode);
+                        output_blocked(eval_command, &result.level, "User cancelled via dialog", claude_mode);
                     }
                 }
             }
@@ -328,10 +329,10 @@ fn run_gate(
                 let auth = TouchIdAuth::new();
                 match auth.authenticate(command) {
                     Ok(true) => {
-                        output_allowed("Touch ID", claude_mode);
+                        output_allowed(eval_command, &result.level, "Touch ID", claude_mode);
                     }
                     _ => {
-                        output_blocked("User cancelled via Touch ID", claude_mode);
+                        output_blocked(eval_command, &result.level, "User cancelled via Touch ID", claude_mode);
                     }
                 }
             }
@@ -359,10 +360,10 @@ fn run_gate(
                         eprintln!("📱 Telegram approval request sent. Waiting for response...");
                         match bridge.authenticate(command) {
                             Ok(true) => {
-                                output_allowed("Telegram", claude_mode);
+                                output_allowed(eval_command, &result.level, "Telegram", claude_mode);
                             }
                             _ => {
-                                output_blocked("User denied via Telegram", claude_mode);
+                                output_blocked(eval_command, &result.level, "User denied via Telegram", claude_mode);
                             }
                         }
                     }
@@ -376,7 +377,7 @@ fn run_gate(
                 // Check environment variable first (already parsed above)
                 if let Some(ref val) = env_confirm {
                     if val.to_lowercase() == "yes" || val == "1" || val.to_lowercase() == "true" {
-                        output_allowed("VETO_CONFIRM", claude_mode);
+                        output_allowed(eval_command, &result.level, "VETO_CONFIRM", claude_mode);
                     }
                 }
 
@@ -389,10 +390,10 @@ fn run_gate(
                     let auth = ConfirmAuth::new();
                     match auth.authenticate(command) {
                         Ok(true) => {
-                            output_allowed("confirmation", claude_mode);
+                            output_allowed(eval_command, &result.level, "confirmation", claude_mode);
                         }
                         _ => {
-                            output_blocked("User cancelled confirmation", claude_mode);
+                            output_blocked(eval_command, &result.level, "User cancelled confirmation", claude_mode);
                         }
                     }
                 }
@@ -421,14 +422,22 @@ fn run_gate(
     };
 
     if verified {
-        output_allowed(method, claude_mode);
+        output_allowed(eval_command, &result.level, method, claude_mode);
     } else {
-        output_blocked("Verification failed", claude_mode);
+        output_blocked(eval_command, &result.level, "Verification failed", claude_mode);
     }
 }
 
 /// Output allowed message - JSON for Claude mode to bypass permission prompt
-fn output_allowed(method: &str, claude_mode: bool) -> ! {
+fn output_allowed(command: &str, risk_level: &RiskLevel, method: &str, claude_mode: bool) -> ! {
+    // Log to audit trail
+    audit::log_audit(&audit::AuditEntry {
+        command: command.to_string(),
+        risk_level: risk_level.clone(),
+        result: audit::AuditResult::Allowed,
+        auth_method: Some(method.to_string()),
+    });
+
     if claude_mode {
         // Claude Code hooks: permissionDecision "allow" bypasses permission prompt
         let json = serde_json::json!({
@@ -447,7 +456,15 @@ fn output_allowed(method: &str, claude_mode: bool) -> ! {
 }
 
 /// Output blocked message - JSON for Claude mode, text for normal mode
-fn output_blocked(reason: &str, claude_mode: bool) -> ! {
+fn output_blocked(command: &str, risk_level: &RiskLevel, reason: &str, claude_mode: bool) -> ! {
+    // Log to audit trail
+    audit::log_audit(&audit::AuditEntry {
+        command: command.to_string(),
+        risk_level: risk_level.clone(),
+        result: audit::AuditResult::Denied,
+        auth_method: None,
+    });
+
     if claude_mode {
         // Claude Code hooks: output JSON with deny decision and continue: false
         // This tells Claude Code to stop completely without showing its own dialog

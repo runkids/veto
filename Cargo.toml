@@ -49,6 +49,9 @@ qrcode = "0.14"
 # JSON parsing (Claude Code stdin)
 serde_json = "1"
 
+# Timestamp for audit log
+chrono = "0.4"
+
 # macOS biometric auth uses osascript, no additional deps needed
 
 # File-based keyring fallback (for Docker/headless environments)
