@@ -1,0 +1,121 @@
+# mise.toml - Development environment and task runner
+# https://mise.jdx.dev/
+
+[env]
+DOCKER_BUILDKIT = "1"
+
+[tools]
+rust = "1.82"
+
+# =============================================================================
+# Docker Development Tasks
+# =============================================================================
+
+[tasks.dev]
+description = "Enter interactive Docker development shell"
+run = "docker-compose run --rm dev"
+
+[tasks.build]
+description = "Build debug binary in Docker"
+run = "docker-compose run --rm test cargo build"
+
+[tasks.test]
+description = "Run all tests in Docker"
+run = "docker-compose run --rm test cargo test"
+
+[tasks."test:unit"]
+description = "Run unit tests only"
+run = "docker-compose run --rm test cargo test --lib"
+
+[tasks."test:rules"]
+description = "Run rules module tests"
+run = "docker-compose run --rm test cargo test rules"
+
+[tasks."test:auth"]
+description = "Run auth module tests"
+run = "docker-compose run --rm test cargo test auth"
+
+[tasks."test:config"]
+description = "Run config module tests"
+run = "docker-compose run --rm test cargo test config"
+
+[tasks.release]
+description = "Build release binary in Docker"
+run = "docker-compose run --rm test cargo build --release"
+
+[tasks.clean]
+description = "Clean build artifacts and Docker volumes"
+run = """
+docker-compose down -v
+rm -rf target/
+"""
+
+# =============================================================================
+# Code Quality Tasks
+# =============================================================================
+
+[tasks.check]
+description = "Run cargo check"
+run = "docker-compose run --rm test cargo check"
+
+[tasks.clippy]
+description = "Run clippy linter"
+run = "docker-compose run --rm test cargo clippy -- -D warnings"
+
+[tasks.fmt]
+description = "Format code"
+run = "docker-compose run --rm test cargo fmt"
+
+[tasks."fmt:check"]
+description = "Check code formatting"
+run = "docker-compose run --rm test cargo fmt -- --check"
+
+# =============================================================================
+# Utility Tasks
+# =============================================================================
+
+[tasks.sandbox]
+description = "Enter safe sandbox environment"
+run = "docker-compose run --rm sandbox"
+
+[tasks.doctor]
+description = "Run veto doctor"
+run = "docker-compose run --rm test cargo run -- doctor"
+
+[tasks.init]
+description = "Run veto init"
+run = "docker-compose run --rm test cargo run -- init"
+
+[tasks."veto:check"]
+description = "Check a command's risk level"
+run = "docker-compose run --rm test cargo run -- check"
+
+# =============================================================================
+# Local Development Tasks (without Docker)
+# =============================================================================
+
+[tasks."local:build"]
+description = "Build locally (requires Rust)"
+run = "cargo build"
+
+[tasks."local:test"]
+description = "Test locally (requires Rust)"
+run = "cargo test"
+
+[tasks."local:release"]
+description = "Build release locally (requires Rust)"
+run = "cargo build --release"
+
+# =============================================================================
+# CI Pipeline
+# =============================================================================
+
+[tasks.ci]
+description = "Run full CI pipeline"
+depends = ["fmt:check", "check", "clippy", "test"]
+run = "echo 'CI checks passed!'"
+
+[tasks.all]
+description = "Build and test everything"
+depends = ["build", "test"]
+run = "echo 'All tasks completed!'"

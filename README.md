@@ -222,21 +222,52 @@ veto init --force
 
 ## Development
 
-### Docker Commands
+### Quick Commands (Make)
 
 ```bash
-# Run all tests
-docker-compose run --rm test cargo test
+make help      # 顯示所有可用命令
 
-# Run specific tests
-docker-compose run --rm test cargo test rules
-docker-compose run --rm test cargo test auth
+# 開發
+make dev       # 進入互動式 Docker 開發環境
+make build     # 編譯 debug 版本
+make test      # 執行所有測試
+make release   # 編譯 release 版本
 
-# Build release
-docker-compose run --rm test cargo build --release
+# 程式碼品質
+make check     # cargo check
+make clippy    # 執行 clippy linter
+make fmt       # 格式化程式碼
 
-# Interactive development shell
-docker-compose run --rm dev
+# 工具
+make sandbox   # 進入安全沙盒環境
+make doctor    # 執行 veto doctor
+make clean     # 清理建置產物
+
+# CI
+make ci        # 執行完整 CI pipeline
+```
+
+### Quick Commands (mise)
+
+如果你使用 [mise](https://mise.jdx.dev/)：
+
+```bash
+mise tasks     # 顯示所有可用任務
+
+# 開發
+mise run dev       # 進入互動式 Docker 開發環境
+mise run build     # 編譯
+mise run test      # 執行所有測試
+mise run release   # 編譯 release 版本
+
+# 特定模組測試
+mise run test:rules
+mise run test:auth
+mise run test:config
+
+# CI
+mise run ci        # 執行完整 CI pipeline
+mise run all       # 編譯 + 測試
 ```
 
 ### Interactive Development
@@ -244,19 +275,20 @@ docker-compose run --rm dev
 進入 Docker 容器進行互動式測試：
 
 ```bash
-# 啟動開發環境
+# 使用 make
+make dev
+
+# 或直接使用 docker-compose
 docker-compose run --rm dev
 
-# 現在你在容器內的 /app 目錄
-# 可以執行以下命令：
-
-cargo build                           # 編譯
-cargo test                            # 測試
-./target/debug/veto --help           # 查看說明
-./target/debug/veto check "ls"       # 檢查命令風險
+# 現在你在容器內的 /app 目錄，可以執行：
+cargo build                              # 編譯
+cargo test                               # 測試
+./target/debug/veto --help              # 查看說明
+./target/debug/veto check "ls"          # 檢查命令風險
 ./target/debug/veto check -v "rm -rf /" # 詳細風險資訊
-./target/debug/veto init             # 初始化設定
-./target/debug/veto doctor           # 診斷狀態
+./target/debug/veto init                # 初始化設定
+./target/debug/veto doctor              # 診斷狀態
 
 # 離開容器
 exit
@@ -267,8 +299,25 @@ exit
 安全測試危險命令（唯讀環境）：
 
 ```bash
+make sandbox
+# 或
 docker-compose run --rm sandbox
+
 # 此環境為唯讀，可安全測試危險命令的風險評估
+```
+
+### Local Development (without Docker)
+
+如果本機已安裝 Rust 1.82+：
+
+```bash
+make local-build    # 本機編譯
+make local-test     # 本機測試
+make local-release  # 本機 release 編譯
+
+# 或使用 mise
+mise run local:build
+mise run local:test
 ```
 
 ---
