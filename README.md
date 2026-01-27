@@ -48,6 +48,20 @@ AI coding assistants execute shell commands autonomously. **veto adds a safety l
 
 ---
 
+## Authentication Methods
+
+| Method | Platform | Description |
+|--------|----------|-------------|
+| 🔐 [**PIN**](docs/authentication.md#pin) | All | 4+ digit code, Argon2 hashed |
+| 📱 [**Telegram**](docs/authentication.md#telegram) | All | Remote approval via bot |
+| 🔑 [**TOTP**](docs/authentication.md#totp-google-authenticator) | All | Google Authenticator compatible |
+| 👆 [**Touch ID**](docs/authentication.md#touch-id-macos) | macOS | Biometric authentication |
+| 💬 **Confirm** | All | Simple y/n prompt |
+
+[→ Setup guide](docs/authentication.md)
+
+---
+
 ## Installation
 
 ```bash
