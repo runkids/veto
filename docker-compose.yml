@@ -21,17 +21,22 @@ services:
     tty: true
     command: /bin/bash
 
-  # Safe sandbox for testing dangerous commands
+  # Safe sandbox for testing veto with dangerous commands
+  # Run `make release` first, then use sandbox
   sandbox:
     build: .
     container_name: veto-sandbox
+    environment:
+      - TERM=xterm-256color
+      - PATH=/app/target/release:/usr/local/cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
     volumes:
-      - ./target/release/veto:/usr/local/bin/veto:ro
-    read_only: true
+      - target-cache:/app/target:ro
     tmpfs:
       - /tmp
     security_opt:
       - no-new-privileges:true
+    stdin_open: true
+    tty: true
     command: /bin/bash
 
 volumes:

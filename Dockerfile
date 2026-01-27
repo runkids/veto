@@ -23,5 +23,8 @@ COPY . .
 # Build
 RUN cargo build --release
 
+# Install veto to /usr/local/bin for sandbox use
+RUN cp target/release/veto /usr/local/bin/veto
+
 # Test entrypoint
 CMD ["cargo", "test"]
