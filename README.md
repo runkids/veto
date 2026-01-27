@@ -296,14 +296,20 @@ exit
 
 ### Sandbox Testing
 
-安全測試危險命令（唯讀環境）：
+Sandbox 預裝了 veto 和 [clawdbot (molt.bot)](https://docs.molt.bot/)：
 
 ```bash
-make sandbox
-# 或
-docker-compose run --rm sandbox
+# 先編譯 release 版本
+make release
 
-# 此環境為唯讀，可安全測試危險命令的風險評估
+# 進入 sandbox
+make sandbox
+
+# 在 sandbox 內可以使用:
+veto check "rm -rf /"     # 測試風險評估
+veto check "git push -f"  # Risk: HIGH
+clawdbot --version        # molt.bot CLI
+clawdbot --help           # 查看 clawdbot 命令
 ```
 
 ### Local Development (without Docker)
