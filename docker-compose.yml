@@ -1,0 +1,39 @@
+# docker-compose.yml
+services:
+  test:
+    build: .
+    container_name: veto-test
+    volumes:
+      - ./src:/app/src:ro
+      - ./tests:/app/tests:ro
+      - cargo-cache:/usr/local/cargo/registry
+      - target-cache:/app/target
+    command: cargo test
+
+  dev:
+    build: .
+    container_name: veto-dev
+    volumes:
+      - .:/app
+      - cargo-cache:/usr/local/cargo/registry
+      - target-cache:/app/target
+    stdin_open: true
+    tty: true
+    command: /bin/bash
+
+  # Safe sandbox for testing dangerous commands
+  sandbox:
+    build: .
+    container_name: veto-sandbox
+    volumes:
+      - ./target/release/veto:/usr/local/bin/veto:ro
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    command: /bin/bash
+
+volumes:
+  cargo-cache:
+  target-cache:
