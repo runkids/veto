@@ -34,11 +34,11 @@ default = "confirm"
 # PER-LEVEL AUTHENTICATION
 # ============================================================
 [auth.levels]
-# Risk level → authentication method(s)
+# Risk level → authentication method
 low = "confirm"                    # Simple y/n
 medium = "pin"                     # PIN required
 high = "touchid"                   # Biometric (macOS)
-critical = ["totp", "telegram"]    # Chain: ALL must pass
+critical = "telegram"              # Remote approval
 
 # ============================================================
 # FALLBACK CONFIGURATION
@@ -86,10 +86,10 @@ timeout_seconds = 60            # Wait time for /allow or /deny
 
 | Key | Type | Description |
 |-----|------|-------------|
-| `low` | string/array | Auth for LOW risk commands |
-| `medium` | string/array | Auth for MEDIUM risk commands |
-| `high` | string/array | Auth for HIGH risk commands |
-| `critical` | string/array | Auth for CRITICAL risk commands |
+| `low` | string | Auth for LOW risk commands |
+| `medium` | string | Auth for MEDIUM risk commands |
+| `high` | string | Auth for HIGH risk commands |
+| `critical` | string | Auth for CRITICAL risk commands |
 
 ### [auth.fallback]
 

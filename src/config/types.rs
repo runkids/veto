@@ -25,11 +25,14 @@ impl From<RulesRiskLevel> for RiskLevel {
     }
 }
 
+/// Authentication method - single method per risk level
+/// Arrays are accepted for backwards compatibility but only first element is used
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(untagged)]
 pub enum AuthMethod {
     Single(String),
-    Multiple(Vec<String>),
+    #[serde(skip_serializing)]
+    Multiple(Vec<String>),  // Deprecated: only first element used
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]

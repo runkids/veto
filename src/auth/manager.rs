@@ -47,7 +47,7 @@ impl AuthManager {
         Self { config }
     }
 
-    /// Get authentication methods for a risk level
+    /// Get authentication method for a risk level
     pub fn get_methods_for_level(&self, level: &RiskLevel) -> Vec<String> {
         let level_key = match level {
             RiskLevel::Allow => return vec![],  // No auth needed
@@ -62,7 +62,8 @@ impl AuthManager {
             if let Some(method) = levels.get(level_key) {
                 return match method {
                     AuthMethod::Single(m) => vec![m.clone()],
-                    AuthMethod::Multiple(ms) => ms.clone(),
+                    // For backwards compatibility, array configs use first element only
+                    AuthMethod::Multiple(ms) => ms.first().cloned().map(|m| vec![m]).unwrap_or_default(),
                 };
             }
         }

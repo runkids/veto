@@ -25,7 +25,7 @@ default = "confirm"
 # low = "confirm"
 # medium = "confirm"
 # high = "pin"
-# critical = ["pin", "confirm"]
+# critical = "telegram"
 
 # TouchID configuration (macOS only)
 # [auth.touchid]

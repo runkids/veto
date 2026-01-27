@@ -157,7 +157,7 @@ Configure different auth methods for different risk levels:
 low = "confirm"                    # Simple y/n
 medium = "pin"                     # PIN required
 high = "touchid"                   # Biometric (macOS)
-critical = ["totp", "telegram"]    # Chain: ALL must pass
+critical = "telegram"              # Remote approval
 ```
 
 ### Fallback Configuration
@@ -169,27 +169,6 @@ When primary method is unavailable:
 touchid = "pin"       # Touch ID unavailable → use PIN
 telegram = "totp"     # Telegram timeout → use TOTP
 totp = "pin"          # TOTP not configured → use PIN
-```
-
-### Authentication Chains
-
-For critical operations, require multiple factors:
-
-```toml
-[auth.levels]
-critical = ["totp", "telegram"]  # Must pass BOTH
-```
-
-**Note:** Chain authentication only works with `veto exec` (terminal mode). In hook mode (`veto gate`), only the first method is used.
-
-Execution flow (`veto exec`):
-```
-1. User runs: veto exec "rm -rf /"
-2. veto: Risk = CRITICAL
-3. veto: Enter TOTP code: [user enters]
-4. veto: Waiting for Telegram approval...
-5. Telegram: [user sends /allow]
-6. veto: ✓ Executing command
 ```
 
 ## Secret Storage
