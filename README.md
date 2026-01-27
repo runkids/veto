@@ -1,6 +1,6 @@
 <p align="center">
   <h1 align="center">veto</h1>
-  <p align="center">AI operation guardian — verify before execute</p>
+  <p align="center">✋ AI operation guardian — Intercept dangerous commands before AI executes them</p>
 </p>
 
 <p align="center">
@@ -11,7 +11,7 @@
 
 <p align="center">
   <strong>Intercept dangerous commands before AI executes them.</strong><br>
-  Risk evaluation + multi-factor authentication for Claude Code, Cursor, Codex.
+  Risk evaluation + multi-factor authentication for Claude Code.
 </p>
 
 ---
@@ -36,6 +36,15 @@ AI coding assistants execute shell commands autonomously. **veto adds a safety l
 |----|--------------|----------|
 | macOS | x86_64 / arm64 | ✅ |
 | Linux | x86_64 / arm64 | ✗ |
+
+---
+
+## Supported AI Tools
+
+| Tool | Status |
+|------|--------|
+| [Claude Code](https://claude.ai/code) | ✅ Supported |
+| [Moltbot](https://clawd.bot/) | 🔜 Coming soon |
 
 ---
 
@@ -64,7 +73,7 @@ Done! Restart Claude Code. High-risk commands now require Touch ID or authentica
 ```
 ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
 │   AI Assistant  │────▶│      veto       │────▶│      Shell      │
-│ (Claude, Cursor)│     │                 │     │    (bash/zsh)   │
+│  (Claude Code)  │     │                 │     │    (bash/zsh)   │
 └─────────────────┘     │  1. Parse cmd   │     └─────────────────┘
                         │  2. Match rules │
                         │  3. Eval risk   │

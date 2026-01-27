@@ -122,18 +122,6 @@ veto ~/project $ rm -rf node_modules
 
 Shell built-ins: `cd`, `pwd`, `help`, `exit`
 
-## Integration with Other AI Tools
-
-veto can integrate with any tool that supports shell hooks or command wrapping:
-
-### Cursor
-
-Configure in Cursor settings to use `veto exec` for shell commands.
-
-### Codex
-
-Use `veto gate` in your command pipeline.
-
 ## Debugging
 
 ### Check Hook Status
@@ -176,3 +164,9 @@ veto gate --claude --pin 1234
 ```
 
 This is useful for CI/CD pipelines with pre-approved commands.
+
+## Other AI Tools
+
+Currently veto supports Claude Code. More integrations coming soon:
+
+- [Moltbot](https://clawd.bot/) — 🔜 Coming soon
