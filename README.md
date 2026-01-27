@@ -14,6 +14,10 @@
   Risk evaluation + multi-factor authentication for Claude Code.
 </p>
 
+<p align="center">
+  <img src="docs/assets/VetoIntro.gif" alt="Veto Demo" width="600">
+</p>
+
 ---
 
 ## Why veto?
