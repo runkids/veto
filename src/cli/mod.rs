@@ -97,6 +97,10 @@ pub struct GateArgs {
     #[arg(long, conflicts_with = "command")]
     pub claude: bool,
 
+    /// OpenCode mode - use dialog/touchid auth, don't suggest env var bypass
+    #[arg(long, conflicts_with = "claude")]
+    pub opencode: bool,
+
     /// Override authentication method
     #[arg(long)]
     pub auth: Option<String>,
@@ -115,6 +119,12 @@ pub enum SetupCommands {
     /// Setup Claude Code hooks integration
     Claude {
         /// Remove veto hooks from Claude Code
+        #[arg(long)]
+        uninstall: bool,
+    },
+    /// Setup OpenCode plugin integration
+    Opencode {
+        /// Remove veto plugin from OpenCode
         #[arg(long)]
         uninstall: bool,
     },

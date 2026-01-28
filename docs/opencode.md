@@ -1,16 +1,16 @@
-# Claude Code Integration
+# OpenCode Integration
 
 ## Quick Setup
 
 ```bash
-veto init             # Create config (first time)
-veto setup claude      # Install hooks
+veto init              # Create config (first time)
+veto setup opencode    # Install plugin
 veto doctor            # Verify setup
 ```
 
-Restart Claude Code. Done!
+Restart OpenCode. Done!
 
-To remove: `veto setup claude --uninstall`
+To remove: `veto setup opencode --uninstall`
 
 ## How It Works
 
@@ -18,15 +18,15 @@ To remove: `veto setup claude --uninstall`
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                            Claude Code + veto Flow                          │
+│                            OpenCode + veto Flow                              │
 └─────────────────────────────────────────────────────────────────────────────┘
 
-  AI wants to run                PreToolUse Hook                    Result
-  ─────────────                  ───────────────                    ──────
+  AI wants to run            tool.execute.before               Result
+  ─────────────              ───────────────────               ──────
 
   ┌─────────────┐               ┌─────────────────┐
-  │ Claude Code │──── Bash ────▶│  veto gate      │
-  │   (AI)      │    command    │   --claude      │
+  │  OpenCode   │─── Bash ─────▶│  veto gate      │
+  │    (AI)     │   command     │   --opencode    │
   └─────────────┘               └────────┬────────┘
                                          │
                                          ▼
@@ -57,7 +57,13 @@ To remove: `veto setup claude --uninstall`
               │ needed   │  │ touchid  │  │ confirm  │
               └────┬─────┘  └────┬─────┘  └────┬─────┘
                    │             │             │
-                   ▼             ▼             ▼
+                   │             ▼             ▼
+                   │       ┌──────────┐  ┌────────────────┐
+                   │       │ System   │  │ AI asks user   │
+                   │       │ Popup    │  │ for code       │
+                   │       └────┬─────┘  └───────┬────────┘
+                   │             │               │
+                   ▼             ▼               ▼
               ┌─────────────────────────────────────────────┐
               │                  exit 0                     │
               │              Command Executes               │
@@ -72,8 +78,8 @@ To remove: `veto setup claude --uninstall`
 └─────────────────────────────────────────────────────────────────────────────┘
 
   ┌─────────────┐        ┌─────────────────┐        ┌─────────────────┐
-  │ Claude Code │───────▶│  veto gate      │───────▶│  macOS Dialog   │
-  │   (AI)      │        │  --claude       │        │  or Touch ID    │
+  │  OpenCode   │───────▶│  veto gate      │───────▶│  macOS Dialog   │
+  │  (AI)       │        │  --opencode     │        │  or Touch ID    │
   └─────────────┘        └─────────────────┘        └────────┬────────┘
                                                              │
                                                ┌─────────────┴─────────────┐
@@ -85,11 +91,11 @@ To remove: `veto setup claude --uninstall`
                                         └─────┬──────┘              └─────┬──────┘
                                               │                           │
                                               ▼                           ▼
-                                        ┌────────────┐              ┌─────────────────┐
-                                        │  exit 0    │              │ JSON output     │
-                                        │  Command   │              │ continue: false │
-                                        │  Executes  │              │ AI stops        │
-                                        └────────────┘              └─────────────────┘
+                                        ┌────────────┐              ┌────────────┐
+                                        │  exit 0    │              │  exit 2    │
+                                        │  Command   │              │ STOP_RETRY │
+                                        │  Executes  │              │ AI stops   │
+                                        └────────────┘              └────────────┘
 ```
 
 ### Authentication Flow (pin/totp)
@@ -103,8 +109,8 @@ To remove: `veto setup claude --uninstall`
   ───────────────────────
 
   ┌─────────────┐        ┌─────────────────┐        ┌─────────────────────────┐
-  │ Claude Code │───────▶│  veto gate      │───────▶│ "Ask user for PIN..."  │
-  │   (AI)      │        │  --claude       │        │  exit 2                 │
+  │  OpenCode   │───────▶│  veto gate      │───────▶│ "Ask user for PIN..."  │
+  │  (AI)       │        │  --opencode     │        │  exit 2                 │
   └─────────────┘        └─────────────────┘        └─────────────────────────┘
                                                               │
                                                               ▼
@@ -117,102 +123,78 @@ To remove: `veto setup claude --uninstall`
   ──────────────────────────────────────
 
   ┌─────────────┐        ┌─────────────────┐        ┌─────────────────────────┐
-  │ Claude Code │───────▶│  VETO_PIN=1234  │───────▶│  Verify PIN            │
-  │   (AI)      │        │  veto gate ...  │        │                         │
+  │  OpenCode   │───────▶│  VETO_PIN=1234  │───────▶│  Verify PIN            │
+  │  (AI)       │        │  veto gate ...  │        │                         │
   └─────────────┘        └─────────────────┘        └────────────┬────────────┘
                                                                  │
                                                    ┌─────────────┴─────────────┐
                                                    │                           │
                                                    ▼                           ▼
-                                            ┌────────────┐              ┌─────────────────┐
-                                            │  Correct   │              │  Wrong PIN      │
-                                            │  PIN       │              │                 │
-                                            └─────┬──────┘              └─────┬───────────┘
+                                            ┌────────────┐              ┌────────────┐
+                                            │  Correct   │              │  Wrong     │
+                                            │  PIN       │              │  PIN       │
+                                            └─────┬──────┘              └─────┬──────┘
                                                   │                           │
                                                   ▼                           ▼
-                                            ┌────────────┐              ┌─────────────────┐
-                                            │  exit 0    │              │ JSON output     │
-                                            │  Command   │              │ continue: false │
-                                            │  Executes  │              │ AI stops        │
-                                            └────────────┘              └─────────────────┘
+                                            ┌────────────┐              ┌────────────┐
+                                            │  exit 0    │              │  exit 2    │
+                                            │  Command   │              │  Blocked   │
+                                            │  Executes  │              │            │
+                                            └────────────┘              └────────────┘
 ```
 
-## Key Behaviors
+## Plugin Location
 
-| User Action | veto Output | Claude Code Behavior |
-|-------------|-------------|---------------------|
-| ✓ Approve (Touch ID/PIN) | `exit 0` | Command executes |
-| ✗ Cancel | `{"continue":false}` | **AI stops completely** |
-| ✗ Verification failed | `{"continue":false}` | **AI stops completely** |
-
-When a command requires verification but no credentials were provided (common in Claude mode for `pin` / `totp` / `confirm`):
-- veto exits non-zero and prints an instruction telling the AI to ask you for a code and retry with `VETO_PIN=...` / `VETO_TOTP=...` / `VETO_CONFIRM=yes`.
-
-When user cancels authentication:
-- veto outputs JSON with `"permissionDecision": "deny"` and `"continue": false`
-- Claude Code receives this and **stops all processing**
-- AI will **not** ask "What should I do instead?" or retry
-
-## Manual Configuration
-
-If you prefer to configure manually, add to `~/.claude/settings.json`:
-
-```json
-{
-  "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "veto gate --claude"
-          }
-        ]
-      }
-    ]
-  }
-}
+The plugin is installed at:
+```
+~/.config/opencode/plugins/veto-gate.js
 ```
 
-## veto shell (Alternative)
+## Authentication Methods
 
-Instead of hooks, you can use the interactive shell:
+| Method | Behavior in OpenCode |
+|--------|---------------------|
+| `dialog` | macOS dialog popup - AI cannot bypass |
+| `touchid` | Touch ID prompt - AI cannot bypass |
+| `pin` | AI asks user for PIN, retry with `VETO_PIN=<code>` |
+| `totp` | AI asks user for TOTP, retry with `VETO_TOTP=<code>` |
+| `confirm` | AI asks user, retry with `VETO_CONFIRM=yes` |
+| `telegram` | Telegram bot approval |
 
-```bash
-veto shell
-# ╔════════════════════════════════════════╗
-# ║         Veto Protected Shell           ║
-# ╚════════════════════════════════════════╝
+**Recommended for OpenCode:** `dialog` or `touchid` (AI cannot bypass these)
 
-veto ~/project $ rm -rf node_modules
-# Risk: MEDIUM
-# Reason: Recursive delete
-# Allow this operation? [y/N]
+## Configuration
+
+Edit `~/.veto/config.toml`:
+
+```toml
+[auth]
+default = "dialog"  # Recommended for OpenCode
+
+[auth.levels]
+low = []              # No auth needed
+medium = []           # No auth needed
+high = ["dialog"]     # Require dialog confirmation
+critical = ["touchid"] # Require Touch ID
 ```
-
-Shell built-ins: `cd`, `pwd`, `help`, `exit`
 
 ## Debugging
 
-### Check Hook Status
+### Check Plugin Status
 
 ```bash
-veto doctor
-# Claude Code Integration:
-#   settings.json: found
-#   PreToolUse hook: configured
-#   veto binary: accessible
+ls ~/.config/opencode/plugins/veto-gate.js
 ```
 
 ### Test Gate Command
 
 ```bash
-echo '{"tool_input":{"command":"ls -la"}}' | veto gate --claude
-# ALLOW commands should exit 0 (often with no output)
+# Should show dialog popup
+veto gate --opencode "rm -rf test"
 
-echo '{"tool_input":{"command":"rm -rf /"}}' | veto gate --claude
-# Should require verification (and may instruct Claude to ask you for a code)
+# With PIN auth configured
+veto gate --opencode "rm -rf test"
+# [veto] HIGH command blocked. Ask user in chat for their PIN code...
 ```
 
 ### View Risk Level
@@ -222,33 +204,32 @@ veto check -v "git push -f origin main"
 # Risk: HIGH
 # Category: git-destructive
 # Reason: Destructive git operation
-# Pattern: git push*-f*
 ```
 
-## Passing Auth Non-Interactively
+## Differences from Claude Code
 
-For automated scenarios, you can pass authentication directly:
+| Feature | Claude Code | OpenCode |
+|---------|-------------|----------|
+| Integration | `~/.claude/settings.json` | `~/.config/opencode/plugins/` |
+| Hook format | JSON stdin/stdout | ES module plugin |
+| Flag | `--claude` | `--opencode` |
+| Cancel behavior | JSON `continue: false` | `throw Error` + tracking |
 
-```bash
-veto gate --claude --totp 123456
-veto gate --claude --pin 1234
+## Troubleshooting
+
+### AI doesn't ask for PIN/TOTP
+
+Some AI models may not follow the instruction to ask users for codes. Use `dialog` or `touchid` instead - these don't depend on AI cooperation.
+
+### AI keeps retrying after denial
+
+The plugin tracks denied commands and blocks retries with:
+```
+[veto] BLOCKED. This command was rejected. DO NOT RETRY.
 ```
 
-This is primarily useful inside the Claude Code hook (Claude provides stdin JSON with the command).
+### Plugin not loading
 
-For a manual test, include stdin JSON:
-
-```bash
-echo '{"tool_input":{"command":"rm -rf /"}}' | veto gate --claude --totp 123456
-```
-
-## Other AI Tools
-
-veto supports multiple AI coding assistants:
-
-| Tool | Integration | Command |
-|------|-------------|---------|
-| Claude Code | ✅ Supported | `veto setup claude` |
-| OpenCode | ✅ Supported | `veto setup opencode` |
-
-See [OpenCode Integration](opencode.md) for OpenCode setup.
+1. Check file exists: `ls ~/.config/opencode/plugins/veto-gate.js`
+2. Restart OpenCode
+3. Check OpenCode console for errors

@@ -184,3 +184,131 @@ fn remove_veto_hooks(settings_path: &PathBuf) -> Result<(), Box<dyn std::error::
 
     Ok(())
 }
+
+// ============================================================================
+// OpenCode Integration
+// ============================================================================
+
+const OPENCODE_PLUGIN_FILENAME: &str = "veto-gate.js";
+
+/// Get OpenCode plugins directory path
+fn get_opencode_plugins_path() -> Option<PathBuf> {
+    dirs::home_dir().map(|h| h.join(".config").join("opencode").join("plugins"))
+}
+
+/// Get full path to veto plugin file
+fn get_opencode_plugin_file_path() -> Option<PathBuf> {
+    get_opencode_plugins_path().map(|p| p.join(OPENCODE_PLUGIN_FILENAME))
+}
+
+/// Check if veto plugin is already configured in OpenCode
+pub fn is_opencode_configured() -> bool {
+    get_opencode_plugin_file_path()
+        .map(|p| p.exists())
+        .unwrap_or(false)
+}
+
+/// Setup OpenCode plugin integration
+pub fn run_setup_opencode(uninstall: bool) -> Result<(), Box<dyn std::error::Error>> {
+    let plugins_path = get_opencode_plugins_path()
+        .ok_or("Cannot find home directory")?;
+
+    println!("{}", "Setting up OpenCode integration...".bold());
+    println!();
+
+    if uninstall {
+        remove_opencode_plugin(&plugins_path)?;
+        println!("  {} Removed veto plugin from OpenCode", "✓".green());
+        println!();
+        println!("Restart OpenCode for changes to take effect.");
+    } else {
+        add_opencode_plugin(&plugins_path)?;
+        println!("  {} Added veto plugin to OpenCode", "✓".green());
+        println!();
+        println!("Done! Restart OpenCode for changes to take effect.");
+    }
+
+    Ok(())
+}
+
+/// Add veto plugin to OpenCode plugins directory
+fn add_opencode_plugin(plugins_path: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
+    // Create plugins directory if needed
+    if !plugins_path.exists() {
+        fs::create_dir_all(plugins_path)?;
+    }
+
+    let plugin_file = plugins_path.join(OPENCODE_PLUGIN_FILENAME);
+
+    // Check if already exists
+    if plugin_file.exists() {
+        println!("  {} veto plugin already configured", "○".yellow());
+        return Ok(());
+    }
+
+    // Plugin content - ES module format for OpenCode (uses Bun)
+    // Uses client.session.prompt() to instruct AI when auth is needed
+    let plugin_content = r#"export const VetoGate = async ({ project, client, $, directory, worktree }) => {
+  // Track denied commands and pending auth
+  const deniedCommands = new Set()
+  const pendingAuth = new Map() // command -> { method, attempts }
+
+  return {
+    "tool.execute.before": async (input, output) => {
+      if (input.tool !== "bash") return
+
+      const command = output.args?.command
+      if (!command) return
+
+      // Block permanently denied commands
+      if (deniedCommands.has(command)) {
+        throw new Error("[veto] BLOCKED. This command was rejected. DO NOT RETRY.")
+      }
+
+      const result = await $`veto gate --opencode ${command}`.nothrow()
+
+      if (result.exitCode === 0) {
+        // Approved
+        pendingAuth.delete(command)
+        return
+      }
+
+      // Check stderr for auth instructions
+      const stderr = result.stderr.toString()
+
+      // If user explicitly denied (dialog/touchid), block permanently
+      if (stderr.includes("STOP_RETRY") || stderr.includes("User rejected")) {
+        deniedCommands.add(command)
+        throw new Error("[veto] BLOCKED. User rejected this command. DO NOT RETRY.")
+      }
+
+      // If auth code needed (PIN/TOTP), throw with instructions for AI
+      if (stderr.includes("VETO_PIN=") || stderr.includes("VETO_TOTP=") || stderr.includes("VETO_CONFIRM=")) {
+        throw new Error(stderr.trim())
+      }
+
+      // Other errors
+      throw new Error(`[veto] ${stderr.trim() || "Command blocked"}`)
+    }
+  }
+}
+"#;
+
+    fs::write(&plugin_file, plugin_content)?;
+
+    Ok(())
+}
+
+/// Remove veto plugin from OpenCode plugins directory
+fn remove_opencode_plugin(plugins_path: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
+    let plugin_file = plugins_path.join(OPENCODE_PLUGIN_FILENAME);
+
+    if !plugin_file.exists() {
+        println!("  {} No veto plugin found", "○".yellow());
+        return Ok(());
+    }
+
+    fs::remove_file(&plugin_file)?;
+
+    Ok(())
+}

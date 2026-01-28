@@ -1,6 +1,6 @@
 [package]
 name = "veto"
-version = "0.1.2"
+version = "0.1.3"
 edition = "2021"
 description = "AI operation guardian - verify before execute"
 license = "MIT"

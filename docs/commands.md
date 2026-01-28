@@ -19,6 +19,8 @@
 |---------|-------------|
 | `veto setup claude` | Setup Claude Code hooks |
 | `veto setup claude --uninstall` | Remove Claude Code hooks |
+| `veto setup opencode` | Setup OpenCode plugin |
+| `veto setup opencode --uninstall` | Remove OpenCode plugin |
 
 ## Authentication Commands
 
@@ -39,6 +41,7 @@
 | `-q, --quiet` | Exit code only (for scripts) |
 | `--auth <method>` | Override auth method (exec, gate) |
 | `--claude` | Read command from Claude Code stdin JSON (gate only) |
+| `--opencode` | OpenCode mode - uses config.toml auth (gate only) |
 | `--totp <code>` | Pass TOTP code directly (gate only) |
 | `--pin <code>` | Pass PIN directly (gate only) |
 | `--check` | Only check for updates (upgrade only) |

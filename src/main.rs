@@ -16,7 +16,7 @@ use auth::{
     manager::AsyncAuthBridge,
 };
 use executor::ShellExecutor;
-use commands::{run_init, run_doctor, run_auth_command, run_shell, run_setup_claude, run_upgrade, run_log};
+use commands::{run_init, run_doctor, run_auth_command, run_shell, run_setup_claude, run_setup_opencode, run_upgrade, run_log};
 
 fn main() {
     let cli = Cli::parse();
@@ -42,12 +42,12 @@ fn main() {
                 match args.command {
                     Some(cmd) => cmd,
                     None => {
-                        eprintln!("{}", "Error: command required (or use --claude)".red());
+                        eprintln!("{}", "Error: command required (or use --claude/--opencode)".red());
                         std::process::exit(1);
                     }
                 }
             };
-            run_gate(&engine, &actual_command, args.auth, args.totp, args.pin, cli.verbose, args.claude);
+            run_gate(&engine, &actual_command, args.auth, args.totp, args.pin, cli.verbose, args.claude, args.opencode);
         }
         Commands::Init { force } => {
             if let Err(e) = run_init(force) {
@@ -74,6 +74,12 @@ fn main() {
             match command {
                 SetupCommands::Claude { uninstall } => {
                     if let Err(e) = run_setup_claude(uninstall) {
+                        eprintln!("{} {}", "Error:".red(), e);
+                        std::process::exit(1);
+                    }
+                }
+                SetupCommands::Opencode { uninstall } => {
+                    if let Err(e) = run_setup_opencode(uninstall) {
                         eprintln!("{} {}", "Error:".red(), e);
                         std::process::exit(1);
                     }
@@ -198,6 +204,7 @@ fn run_gate(
     pin_code: Option<String>,
     verbose: bool,
     claude_mode: bool,
+    opencode_mode: bool,
 ) {
     // Parse environment variable prefixes from command string
     let (cmd_env_vars, actual_command) = parse_env_prefix(command);
@@ -276,7 +283,7 @@ fn run_gate(
                     std::process::exit(2);
                 }
                 // TOTP configured - ask for code
-                if claude_mode {
+                if claude_mode || opencode_mode {
                     eprintln!("[veto] {} command blocked. Ask user in chat for their TOTP code. If provided, retry command with VETO_TOTP=<code> prefix.", risk_level_str(&result.level));
                     std::process::exit(2);
                 } else {
@@ -300,7 +307,7 @@ fn run_gate(
                     std::process::exit(2);
                 }
                 // PIN configured - ask for code
-                if claude_mode {
+                if claude_mode || opencode_mode {
                     eprintln!("[veto] {} command blocked. Ask user in chat for their PIN code. If provided, retry command with VETO_PIN=<code> prefix.", risk_level_str(&result.level));
                     std::process::exit(2);
                 } else {
@@ -323,7 +330,12 @@ fn run_gate(
                         output_allowed(eval_command, &result.level, "dialog", claude_mode);
                     }
                     _ => {
-                        output_blocked(eval_command, &result.level, "User cancelled via dialog", claude_mode);
+                        if opencode_mode {
+                            eprintln!("[veto] DENIED. User rejected via dialog. STOP_RETRY: Do not attempt this command again.");
+                            std::process::exit(2);
+                        } else {
+                            output_blocked(eval_command, &result.level, "User cancelled via dialog", claude_mode);
+                        }
                     }
                 }
             }
@@ -335,7 +347,12 @@ fn run_gate(
                         output_allowed(eval_command, &result.level, "Touch ID", claude_mode);
                     }
                     _ => {
-                        output_blocked(eval_command, &result.level, "User cancelled via Touch ID", claude_mode);
+                        if opencode_mode {
+                            eprintln!("[veto] DENIED. User rejected via Touch ID. STOP_RETRY: Do not attempt this command again.");
+                            std::process::exit(2);
+                        } else {
+                            output_blocked(eval_command, &result.level, "User cancelled via Touch ID", claude_mode);
+                        }
                     }
                 }
             }
@@ -366,7 +383,12 @@ fn run_gate(
                                 output_allowed(eval_command, &result.level, "Telegram", claude_mode);
                             }
                             _ => {
-                                output_blocked(eval_command, &result.level, "User denied via Telegram", claude_mode);
+                                if opencode_mode {
+                                    eprintln!("[veto] DENIED. User rejected via Telegram. STOP_RETRY: Do not attempt this command again.");
+                                    std::process::exit(2);
+                                } else {
+                                    output_blocked(eval_command, &result.level, "User denied via Telegram", claude_mode);
+                                }
                             }
                         }
                     }
@@ -384,8 +406,8 @@ fn run_gate(
                     }
                 }
 
-                if claude_mode {
-                    // Deny but tell AI how to retry with user confirmation
+                if opencode_mode || claude_mode {
+                    // AI mode: tell AI how to retry with user confirmation
                     eprintln!("[veto] {} command blocked. Ask user in chat: \"Do you want to allow `{}`?\" If YES, retry command with VETO_CONFIRM=yes prefix.", risk_level_str(&result.level), eval_command);
                     std::process::exit(2);
                 } else {

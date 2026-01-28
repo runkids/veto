@@ -11,7 +11,7 @@
 
 <p align="center">
   <strong>Risk evaluation + authentication gate for shell commands.</strong><br>
-  Built for Claude Code hooks, also usable as a CLI.
+  Built for Claude Code & OpenCode, also usable as a CLI.
 </p>
 
 <p align="center">
@@ -40,15 +40,16 @@ curl -fsSL https://raw.githubusercontent.com/runkids/veto/main/install.sh | bash
 
 Prefer to inspect installers before running them? See [Installation](docs/installation.md).
 
-Enable Claude Code hooks:
+Setup for your AI tool:
 
 ```bash
 veto init
-veto setup claude
+veto setup claude    # For Claude Code
+veto setup opencode  # For OpenCode
 veto doctor
 ```
 
-Restart Claude Code. High-risk commands will now require verification.
+Restart your AI tool. High-risk commands will now require verification.
 
 ---
 
@@ -59,6 +60,13 @@ Claude Code hook (simulate stdin JSON):
 ```bash
 echo '{"tool_input":{"command":"ls -la"}}' | veto gate --claude
 # ALLOW commands should exit 0 (often with no output)
+```
+
+OpenCode gate:
+
+```bash
+veto gate --opencode "rm -rf node_modules"
+# Reads config.toml for auth method (dialog/touchid/pin/totp)
 ```
 
 Direct CLI risk check:
@@ -79,11 +87,12 @@ Install (script downloads the correct binary):
 curl -fsSL https://raw.githubusercontent.com/runkids/veto/main/install.sh | bash
 ```
 
-Enable Claude Code hooks (optional):
+Enable AI tool integration (optional):
 
 ```bash
 veto init
-veto setup claude
+veto setup claude    # For Claude Code
+veto setup opencode  # For OpenCode
 ```
 
 Upgrade:
@@ -93,10 +102,11 @@ veto upgrade --check
 veto upgrade
 ```
 
-If your Claude Code hooks ever go missing (or you want to reinstall them):
+Reinstall hooks/plugins:
 
 ```bash
-veto setup claude
+veto setup claude    # Reinstall Claude Code hooks
+veto setup opencode  # Reinstall OpenCode plugin
 ```
 
 Uninstall:
@@ -111,10 +121,11 @@ Full uninstall (including keychain secrets):
 curl -fsSL https://raw.githubusercontent.com/runkids/veto/main/uninstall.sh | bash -s -- --purge
 ```
 
-Remove Claude Code hooks only:
+Remove AI tool integration only:
 
 ```bash
-veto setup claude --uninstall
+veto setup claude --uninstall    # Remove Claude Code hooks
+veto setup opencode --uninstall  # Remove OpenCode plugin
 ```
 
 Full details: [Installation](docs/installation.md) and [Claude Code integration](docs/claude-code.md).
@@ -195,7 +206,8 @@ veto log --clear
 - [Configuration](docs/configuration.md)
 - [Rules](docs/rules.md)
 - [Authentication](docs/authentication.md)
-- [Claude Code](docs/claude-code.md)
+- [Claude Code Integration](docs/claude-code.md)
+- [OpenCode Integration](docs/opencode.md)
 - [Troubleshooting](docs/troubleshooting.md)
 
 ---
