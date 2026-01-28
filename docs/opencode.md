@@ -235,6 +235,11 @@ The plugin tracks denied commands and blocks retries with:
 [veto] BLOCKED. This command was rejected. DO NOT RETRY.
 ```
 
+To retry after explicit approval, run the command with:
+```
+VETO_FORCE=yes <command>
+```
+
 ### Plugin not loading
 
 1. Check file exists: `ls ~/.config/opencode/plugins/veto-gate.js`

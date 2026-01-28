@@ -21,14 +21,10 @@ The hook calls `veto gate --cursor` which returns JSON like:
 {"continue": true, "permission": "allow"}
 ```
 
-If verification is required, veto can return a denial or an approval request:
+If verification is required, veto returns a denial:
 
 ```json
 {"continue": false, "permission": "deny", "user_message": "..."}
-```
-
-```json
-{"continue": true, "permission": "ask", "user_message": "...", "agent_message": "..."}
 ```
 
 ## Hook Location (Global)
@@ -44,10 +40,13 @@ veto writes a `beforeShellExecution` hook pointing to `veto gate --cursor`.
 ## Recommended Authentication
 
 - **Recommended:** `dialog` or `touchid` (fully enforced by veto)
-- **Confirm:** returns a Cursor approval prompt (`permission: ask`)
+- **Confirm:** denied in Cursor CLI (no re-prompt). Use dialog/touchid instead
 - **PIN/TOTP:** not supported inside Cursor CLI hooks
   - Run in a terminal with `VETO_PIN=<code>` / `VETO_TOTP=<code>`
   - Or switch auth to `dialog`/`touchid` in `~/.veto/config.toml`
+
+If a command is explicitly rejected (dialog/touchid/telegram), Cursor CLI will not re-prompt.
+To retry after an explicit user approval, run with `VETO_FORCE=yes`.
 
 ## Debugging
 

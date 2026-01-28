@@ -153,6 +153,15 @@ When user cancels authentication:
 - Claude Code receives this and **stops all processing**
 - AI will **not** ask "What should I do instead?" or retry
 
+## Denied Commands
+
+If you explicitly deny a dialog/touchid/telegram prompt, veto will block retries
+for the same command in hook modes. To retry after explicit approval, add:
+
+```bash
+VETO_FORCE=yes <command>
+```
+
 ## Manual Configuration
 
 If you prefer to configure manually, add to `~/.claude/settings.json`:

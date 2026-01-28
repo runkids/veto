@@ -10,6 +10,7 @@
 | Touch ID unavailable | macOS only; falls back to password |
 | Telegram timeout | Increase `timeout_seconds` in config |
 | Keyring errors | Check `veto doctor`; uses file fallback |
+| Repeated prompts after denial | veto now blocks retries; override with `VETO_FORCE=yes` if user explicitly approved |
 
 ## Diagnostic Commands
 

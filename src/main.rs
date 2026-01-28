@@ -375,9 +375,23 @@ fn run_gate(
     let effective_totp = totp_code.or(env_totp);
     let has_credentials = effective_totp.is_some() || effective_pin.is_some() || env_confirm.is_some();
     let has_response = env_response.is_some();
+    let env_force = std::env::var("VETO_FORCE").ok()
+        .or_else(|| cmd_env_vars.get("VETO_FORCE").cloned());
+    let force_retry = env_force
+        .map(|v| v == "1" || v.eq_ignore_ascii_case("true") || v.eq_ignore_ascii_case("yes"))
+        .unwrap_or(false);
 
     // Check if this rule requires challenge-response authentication
     let requires_challenge = result.challenge && (claude_mode || opencode_mode || gemini_mode || cursor_mode);
+
+    // Hook modes: prevent repeated prompts after a user denial unless explicitly forced
+    if (claude_mode || opencode_mode || gemini_mode || cursor_mode)
+        && !force_retry
+        && audit::was_denied_command(eval_command)
+    {
+        let msg = "[veto] Previously rejected. Not retrying without user override. Retry with VETO_FORCE=yes if user explicitly approved.";
+        output_blocked(eval_command, &result.level, msg, claude_mode, gemini_mode, cursor_mode);
+    }
 
     // Handle challenge-response verification if VETO_RESPONSE is provided
     if requires_challenge && has_response {
@@ -515,9 +529,14 @@ fn run_gate(
                         output_allowed(eval_command, &result.level, "dialog", claude_mode, gemini_mode, cursor_mode);
                     }
                     _ => {
+                        if claude_mode || opencode_mode || gemini_mode || cursor_mode {
+                            audit::record_denied_command(eval_command);
+                        }
                         if opencode_mode {
                             eprintln!("[veto] DENIED. User rejected via dialog. STOP_RETRY: Do not attempt this command again.");
                             std::process::exit(2);
+                        } else if claude_mode || gemini_mode || cursor_mode {
+                            output_blocked(eval_command, &result.level, "User cancelled via dialog", claude_mode, gemini_mode, cursor_mode);
                         } else {
                             output_blocked(eval_command, &result.level, "User cancelled via dialog", claude_mode, gemini_mode, cursor_mode);
                         }
@@ -532,9 +551,14 @@ fn run_gate(
                         output_allowed(eval_command, &result.level, "Touch ID", claude_mode, gemini_mode, cursor_mode);
                     }
                     _ => {
+                        if claude_mode || opencode_mode || gemini_mode || cursor_mode {
+                            audit::record_denied_command(eval_command);
+                        }
                         if opencode_mode {
                             eprintln!("[veto] DENIED. User rejected via Touch ID. STOP_RETRY: Do not attempt this command again.");
                             std::process::exit(2);
+                        } else if claude_mode || gemini_mode || cursor_mode {
+                            output_blocked(eval_command, &result.level, "User cancelled via Touch ID", claude_mode, gemini_mode, cursor_mode);
                         } else {
                             output_blocked(eval_command, &result.level, "User cancelled via Touch ID", claude_mode, gemini_mode, cursor_mode);
                         }
@@ -568,9 +592,14 @@ fn run_gate(
                                 output_allowed(eval_command, &result.level, "Telegram", claude_mode, gemini_mode, cursor_mode);
                             }
                             _ => {
+                                if claude_mode || opencode_mode || gemini_mode || cursor_mode {
+                                    audit::record_denied_command(eval_command);
+                                }
                                 if opencode_mode {
                                     eprintln!("[veto] DENIED. User rejected via Telegram. STOP_RETRY: Do not attempt this command again.");
                                     std::process::exit(2);
+                                } else if claude_mode || gemini_mode || cursor_mode {
+                                    output_blocked(eval_command, &result.level, "User denied via Telegram", claude_mode, gemini_mode, cursor_mode);
                                 } else {
                                     output_blocked(eval_command, &result.level, "User denied via Telegram", claude_mode, gemini_mode, cursor_mode);
                                 }

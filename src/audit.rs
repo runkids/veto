@@ -9,6 +9,8 @@ use chrono::Local;
 use crate::config::loader::get_config_dir;
 use crate::rules::RiskLevel;
 
+const DENY_CACHE_FILENAME: &str = "deny_cache.json";
+
 /// Audit log entry
 pub struct AuditEntry {
     pub command: String,
@@ -91,4 +93,50 @@ pub fn clear_audit_log() -> Result<(), Box<dyn std::error::Error>> {
         std::fs::remove_file(&log_path)?;
     }
     Ok(())
+}
+
+fn get_deny_cache_path() -> std::path::PathBuf {
+    get_config_dir().join(DENY_CACHE_FILENAME)
+}
+
+/// Record a command denial to prevent repeated prompts in hook modes.
+pub fn record_denied_command(command: &str) {
+    if let Err(e) = record_denied_command_internal(command) {
+        eprintln!("Warning: Failed to update deny cache: {}", e);
+    }
+}
+
+fn record_denied_command_internal(command: &str) -> Result<(), Box<dyn std::error::Error>> {
+    let cache_path = get_deny_cache_path();
+    create_dir_all(get_config_dir())?;
+
+    let mut entries: Vec<String> = if cache_path.exists() {
+        let content = std::fs::read_to_string(&cache_path)?;
+        serde_json::from_str(&content).unwrap_or_default()
+    } else {
+        vec![]
+    };
+
+    if !entries.iter().any(|c| c == command) {
+        entries.push(command.to_string());
+    }
+
+    let content = serde_json::to_string_pretty(&entries)?;
+    std::fs::write(cache_path, content)?;
+    Ok(())
+}
+
+/// Check if a command was previously denied.
+pub fn was_denied_command(command: &str) -> bool {
+    let cache_path = get_deny_cache_path();
+    if !cache_path.exists() {
+        return false;
+    }
+
+    let Ok(content) = std::fs::read_to_string(&cache_path) else {
+        return false;
+    };
+
+    let entries: Vec<String> = serde_json::from_str(&content).unwrap_or_default();
+    entries.iter().any(|c| c == command)
 }

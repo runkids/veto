@@ -60,3 +60,12 @@ VETO_PIN=1234 rm -rf node_modules
 VETO_TOTP=123456 git push -f origin main
 VETO_CONFIRM=yes rm -rf /tmp/example
 ```
+
+## Denied Commands
+
+If you explicitly deny a dialog/touchid/telegram prompt, veto will block retries
+for the same command in hook modes. To retry after explicit approval, add:
+
+```bash
+VETO_FORCE=yes <command>
+```
