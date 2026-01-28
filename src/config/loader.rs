@@ -126,7 +126,7 @@ mod tests {
     fn test_parse_config_toml() {
         let toml_str = r#"
 [auth]
-default = "confirm"
+default = "pin"
 
 [auth.touchid]
 enabled = true
@@ -135,7 +135,7 @@ prompt = "Verify operation"
         let config: Config = toml::from_str(toml_str).unwrap();
         assert!(config.auth.is_some());
         let auth = config.auth.unwrap();
-        assert_eq!(auth.default, Some("confirm".to_string()));
+        assert_eq!(auth.default, Some("pin".to_string()));
         assert!(auth.touchid.is_some());
         assert!(auth.touchid.unwrap().enabled);
     }

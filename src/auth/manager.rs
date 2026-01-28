@@ -72,7 +72,7 @@ impl AuthManager {
         if let Some(default) = &self.config.default {
             vec![default.clone()]
         } else {
-            vec!["confirm".to_string()]
+            vec![crate::auth::default_auth_method().to_string()]
         }
     }
 }

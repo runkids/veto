@@ -56,8 +56,8 @@
 | Level | Code | Default Auth | Examples |
 |-------|------|--------------|----------|
 | ALLOW | 0 | None | `ls`, `pwd`, `cargo build` |
-| LOW | 1 | confirm | `curl`, `wget` |
-| MEDIUM | 2 | confirm | `git push`, `npm install` |
+| LOW | 1 | configurable | `curl`, `wget` |
+| MEDIUM | 2 | configurable | `git push`, `npm install` |
 | HIGH | 3 | configurable | `cat .env`, `git push -f` |
 | CRITICAL | 4 | configurable | `rm -rf /`, `mkfs` |
 

@@ -767,6 +767,6 @@ fn auto_select_auth_method(config: &Config) -> String {
     } else if PinAuth::new().is_available() {
         "pin".to_string()
     } else {
-        "confirm".to_string()
+        crate::auth::default_auth_method().to_string()
     }
 }

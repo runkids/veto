@@ -19,6 +19,8 @@ veto init
 ```
 
 This creates default configuration files.
+Default auth method is `touchid` on macOS and `pin` on Linux.
+On Linux, `veto init` will offer to set a PIN if one is not configured yet.
 
 ## config.toml — Full Example
 
@@ -28,14 +30,14 @@ This creates default configuration files.
 # ============================================================
 [auth]
 # Fallback when no level-specific method is configured
-default = "confirm"
+default = "touchid"              # macOS default (use "pin" on Linux)
 
 # ============================================================
 # PER-LEVEL AUTHENTICATION
 # ============================================================
 [auth.levels]
 # Risk level → authentication method
-low = "confirm"                    # Simple y/n
+low = "pin"                        # PIN required
 medium = "pin"                     # PIN required
 high = "touchid"                   # Biometric (macOS)
 critical = "telegram"              # Remote approval

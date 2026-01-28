@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="220" viewBox="0 0 900 220">
+  <defs>
+    <style>
+      .box { fill: #ffffff; stroke: #111111; stroke-width: 2; }
+      .title { font: 18px 'Arial', sans-serif; fill: #111111; }
+      .text { font: 14px 'Arial', sans-serif; fill: #111111; }
+      .arrow { stroke: #111111; stroke-width: 2; marker-end: url(#arrowhead); }
+    </style>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#111111" />
+    </marker>
+  </defs>
+
+  <rect x="40" y="60" width="220" height="100" rx="12" class="box" />
+  <text x="150" y="100" text-anchor="middle" class="title">AI / CLI</text>
+  <text x="150" y="125" text-anchor="middle" class="text">rm -rf /</text>
+
+  <rect x="340" y="60" width="220" height="100" rx="12" class="box" />
+  <text x="450" y="100" text-anchor="middle" class="title">veto gate</text>
+  <text x="450" y="125" text-anchor="middle" class="text">risk evaluate</text>
+
+  <rect x="640" y="60" width="220" height="100" rx="12" class="box" />
+  <text x="750" y="100" text-anchor="middle" class="title">Auth</text>
+  <text x="750" y="125" text-anchor="middle" class="text">Touch ID / PIN</text>
+
+  <line x1="260" y1="110" x2="340" y2="110" class="arrow" />
+  <line x1="560" y1="110" x2="640" y2="110" class="arrow" />
+</svg>

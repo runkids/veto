@@ -48,3 +48,12 @@ pub trait Authenticator: Send + Sync {
     fn is_available(&self) -> bool;
     fn authenticate(&self, command: &str) -> AuthResult;
 }
+
+/// Platform-default auth method (avoid "confirm" as the default)
+pub fn default_auth_method() -> &'static str {
+    if cfg!(target_os = "macos") {
+        "touchid"
+    } else {
+        "pin"
+    }
+}

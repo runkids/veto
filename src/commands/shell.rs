@@ -222,12 +222,12 @@ fn shorten_path(path: &str) -> String {
 fn get_auth_methods(level: &RiskLevel) -> Vec<String> {
     let config = match load_config() {
         Ok(c) => c,
-        Err(_) => return vec!["confirm".to_string()],
+        Err(_) => return vec![crate::auth::default_auth_method().to_string()],
     };
 
     let auth_config = match config.auth {
         Some(a) => a,
-        None => return vec!["confirm".to_string()],
+        None => return vec![crate::auth::default_auth_method().to_string()],
     };
 
     let manager = AuthManager::new(auth_config);

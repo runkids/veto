@@ -154,7 +154,7 @@ Configure different auth methods for different risk levels:
 
 ```toml
 [auth.levels]
-low = "confirm"                    # Simple y/n
+low = "pin"                        # PIN required
 medium = "pin"                     # PIN required
 high = "touchid"                   # Biometric (macOS)
 critical = "telegram"              # Remote approval

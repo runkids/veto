@@ -1,17 +1,20 @@
 <p align="center">
   <h1 align="center">veto</h1>
-  <p align="center">✋ AI operation guardian — intercept dangerous commands before AI executes them</p>
+  <p align="center">✋ Stop AI (or yourself) from running dangerous shell commands without your say‑so</p>
 </p>
 
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
+  <a href="https://github.com/runkids/veto/releases"><img src="https://img.shields.io/github/v/release/runkids/veto?display_name=tag&sort=semver" alt="Release"></a>
+  <a href="https://github.com/runkids/veto/releases"><img src="https://img.shields.io/github/downloads/runkids/veto/total" alt="Downloads"></a>
+  <a href="https://github.com/runkids/veto/actions/workflows/release.yml"><img src="https://img.shields.io/github/actions/workflow/status/runkids/veto/release.yml" alt="Release Workflow"></a>
   <a href="https://www.rust-lang.org/"><img src="https://img.shields.io/badge/rust-1.85+-orange.svg" alt="Rust"></a>
   <a href="#platforms"><img src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux-lightgrey.svg" alt="Platform"></a>
 </p>
 
 <p align="center">
   <strong>Risk evaluation + authentication gate for shell commands.</strong><br>
-  Built for Claude Code & OpenCode, also usable as a CLI.
+  Built for Claude Code & OpenCode, and works great as a standalone CLI.
 </p>
 
 <p align="center">
@@ -22,40 +25,21 @@
 
 ## Why veto?
 
-AI coding assistants can execute shell commands autonomously. **veto adds a risk-based gate**:
+AI coding assistants can execute shell commands autonomously. **veto adds a risk‑based gate**:
 
-- Evaluate risk level (`ALLOW` → `CRITICAL`) using built-in + custom rules
+- Evaluate risk level (`ALLOW` → `CRITICAL`) using built‑in + custom rules
 - For higher risk, require authentication (Touch ID / PIN / TOTP / Telegram / confirm)
 - Keep an audit trail of evaluations
 
----
+If it’s safe, it runs. If it’s risky, you must approve.
 
-## Quick Start
+## Who Is This For?
 
-Install:
+- AI coding users who allow tools to execute shell commands (Claude Code, OpenCode)
+- Developers who want guardrails for destructive commands (`rm -rf`, `git push -f`, `chmod -R`)
+- Teams that need a simple audit trail for command execution decisions
 
-```bash
-curl -fsSL https://raw.githubusercontent.com/runkids/veto/main/install.sh | bash
-```
-
-Prefer to inspect installers before running them? See [Installation](docs/installation.md).
-
-Setup for your AI tool:
-
-```bash
-veto init
-veto setup claude    # For Claude Code
-veto setup opencode  # For OpenCode
-veto doctor
-```
-
-Restart your AI tool. High-risk commands will now require verification.
-
----
-
-## Examples
-
-Check command risk level:
+## 30‑Second Demo
 
 ```bash
 veto check "rm -rf node_modules"
@@ -67,74 +51,107 @@ veto check -v "git push -f origin main"
 # Reason: Destructive git operation
 ```
 
-Execute with authentication:
+Try a protected execution:
 
 ```bash
 veto exec "rm -rf node_modules"
 # Prompts for confirmation based on risk level
 ```
 
-When AI runs a dangerous command:
+---
 
+## FAQ
+
+**Will it block too much?**  
+veto uses risk levels and pattern rules. Safe commands pass; higher‑risk ones require approval. You can tune rules and whitelists.
+
+**Can it be bypassed?**  
+Yes — any command run outside veto (or without AI hooks enabled) bypasses it. It’s a guardrail, not a sandbox.
+
+**How do I customize rules?**  
+Edit `~/.veto/rules.toml` to add categories, patterns, and whitelist entries. See [Rules](docs/rules.md).
+
+---
+
+## Results (Example Output)
+
+Example categories and the kinds of commands they catch:
+
+| Category | Example command | Typical risk |
+|---|---|---|
+| git-destructive | `git push -f origin main` | HIGH |
+| filesystem-delete | `rm -rf /` | CRITICAL |
+| permissions | `chmod -R 777 ./` | MEDIUM |
+| secrets | `cat ~/.ssh/id_rsa` | CRITICAL |
+
+Sample audit log snippet:
+
+```text
+2026-01-28 10:31:12  HIGH     DENIED    git push -f origin main
+2026-01-28 10:33:05  MEDIUM   APPROVED  rm -rf node_modules
+2026-01-28 10:40:22  CRITICAL DENIED    rm -rf /
 ```
-┌──────────────┐      ┌─────────────┐      ┌─────────────┐
-│ AI: rm -rf / │─────▶│ veto gate   │─────▶│ Touch ID /  │
-│              │      │ (intercept) │      │ PIN prompt  │
-└──────────────┘      └─────────────┘      └─────────────┘
+
+---
+
+## Install
+
+Quick install:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/runkids/veto/main/install.sh | bash
+```
+
+Prefer to inspect the installer first?
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/runkids/veto/main/install.sh -o install.sh
+less install.sh
+bash install.sh
+```
+
+Build from source: [Installation](docs/installation.md).
+
+---
+
+## Integrate with AI Tools
+
+```bash
+veto init
+veto setup claude    # Claude Code
+veto setup opencode  # OpenCode
+veto doctor
+```
+
+Restart your AI tool. High‑risk commands will now require verification.
+
+---
+
+## How It Works (At a Glance)
+
+<p align="center">
+  <img src="docs/assets/veto-flow.svg" alt="veto flow" width="800">
+</p>
+
+---
+
+## Standalone CLI (No AI Required)
+
+```bash
+veto check "rm -rf /"
+veto exec "git push -f origin main"
+veto log -n 10
 ```
 
 ---
 
 ## Install / Upgrade / Uninstall
 
-Install (script downloads the correct binary):
+For full instructions and options, see:
 
-```bash
-curl -fsSL https://raw.githubusercontent.com/runkids/veto/main/install.sh | bash
-```
-
-Enable AI tool integration (optional):
-
-```bash
-veto init
-veto setup claude    # For Claude Code
-veto setup opencode  # For OpenCode
-```
-
-Upgrade:
-
-```bash
-veto upgrade --check
-veto upgrade
-```
-
-Reinstall hooks/plugins:
-
-```bash
-veto setup claude    # Reinstall Claude Code hooks
-veto setup opencode  # Reinstall OpenCode plugin
-```
-
-Uninstall:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/runkids/veto/main/uninstall.sh | bash
-```
-
-Full uninstall (including keychain secrets):
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/runkids/veto/main/uninstall.sh | bash -s -- --purge
-```
-
-Remove AI tool integration only:
-
-```bash
-veto setup claude --uninstall    # Remove Claude Code hooks
-veto setup opencode --uninstall  # Remove OpenCode plugin
-```
-
-Full details: [Installation](docs/installation.md) and [Claude Code integration](docs/claude-code.md).
+- [Installation](docs/installation.md)
+- [Claude Code integration](docs/claude-code.md)
+- [OpenCode integration](docs/opencode.md)
 
 ---
 
@@ -154,6 +171,25 @@ What veto does NOT protect against:
 - "Approved but harmful": once you approve, veto will allow the command
 
 Audit log privacy note: the audit log records command strings. Treat it as sensitive if your commands include secrets.
+
+---
+
+## Trust & Verification
+
+- Inspect the installer first (download → inspect → run) in [Installation](docs/installation.md)
+- Prefer source builds? `cargo build --release` is documented in [Installation](docs/installation.md)
+- Clear threat model boundaries (see above)
+
+---
+
+## How It Compares
+
+| Approach | What it does | What it misses |
+|---|---|---|
+| AI tool built‑in approvals | Stops some risky actions | Often not risk‑aware for shell commands |
+| “Just be careful” | Zero setup | Human error still happens |
+| Ad‑hoc scripts / aliases | Narrow guardrails | No risk levels, no audit trail |
+| **veto** | Risk evaluation + auth + audit | Requires setup and hooks for AI tools |
 
 ---
 
