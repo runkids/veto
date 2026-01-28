@@ -55,26 +55,32 @@ Restart your AI tool. High-risk commands will now require verification.
 
 ## Examples
 
-Claude Code hook (simulate stdin JSON):
+Check command risk level:
 
 ```bash
-echo '{"tool_input":{"command":"ls -la"}}' | veto gate --claude
-# ALLOW commands should exit 0 (often with no output)
-```
+veto check "rm -rf node_modules"
+# Risk: MEDIUM
 
-OpenCode gate:
-
-```bash
-veto gate --opencode "rm -rf node_modules"
-# Reads config.toml for auth method (dialog/touchid/pin/totp)
-```
-
-Direct CLI risk check:
-
-```bash
 veto check -v "git push -f origin main"
 # Risk: HIGH
-# Category/Reason/Pattern shown in verbose mode
+# Category: git-destructive
+# Reason: Destructive git operation
+```
+
+Execute with authentication:
+
+```bash
+veto exec "rm -rf node_modules"
+# Prompts for confirmation based on risk level
+```
+
+When AI runs a dangerous command:
+
+```
+┌──────────────┐      ┌─────────────┐      ┌─────────────┐
+│ AI: rm -rf / │─────▶│ veto gate   │─────▶│ Touch ID /  │
+│              │      │ (intercept) │      │ PIN prompt  │
+└──────────────┘      └─────────────┘      └─────────────┘
 ```
 
 ---
