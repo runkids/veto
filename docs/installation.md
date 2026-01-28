@@ -3,7 +3,15 @@
 ## Quick Install
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/runkids/veto/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/runkids/veto/main/install.sh | bash
+```
+
+Prefer to inspect the installer first?
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/runkids/veto/main/install.sh -o install.sh
+less install.sh
+bash install.sh
 ```
 
 This script:
@@ -12,10 +20,44 @@ This script:
 3. Installs to `~/.local/bin/veto`
 4. Adds to PATH if needed
 
+## Next Steps
+
+Initialize config:
+
+```bash
+veto init
+```
+
+If you use Claude Code, enable hooks:
+
+```bash
+veto setup claude
+```
+
+Verify everything is wired correctly:
+
+```bash
+veto doctor
+```
+
+Claude-specific details: [Claude Code integration](claude-code.md).
+
 ## Uninstall
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/runkids/veto/main/uninstall.sh | bash
+curl -fsSL https://raw.githubusercontent.com/runkids/veto/main/uninstall.sh | bash
+```
+
+This removes:
+- veto binary (from PATH)
+- Config directory (`~/.veto`)
+- Claude Code hooks
+- OpenCode plugin
+
+Keychain secrets (PIN, TOTP, Telegram) are preserved by default. To remove everything:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/runkids/veto/main/uninstall.sh | bash -s -- --purge
 ```
 
 ## Build from Source

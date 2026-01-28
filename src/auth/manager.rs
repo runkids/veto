@@ -131,7 +131,8 @@ mod tests {
 
         assert_eq!(manager.get_methods_for_level(&RiskLevel::Allow), Vec::<String>::new());
         assert_eq!(manager.get_methods_for_level(&RiskLevel::Low), vec!["confirm"]);
-        assert_eq!(manager.get_methods_for_level(&RiskLevel::High), vec!["pin", "totp"]);
+        // For backwards compatibility, array configs use first element only
+        assert_eq!(manager.get_methods_for_level(&RiskLevel::High), vec!["pin"]);
         // Medium not configured, should fall back to default
         assert_eq!(manager.get_methods_for_level(&RiskLevel::Medium), vec!["confirm"]);
     }

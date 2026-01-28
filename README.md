@@ -35,8 +35,10 @@ AI coding assistants can execute shell commands autonomously. **veto adds a risk
 Install:
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/runkids/veto/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/runkids/veto/main/install.sh | bash
 ```
+
+Prefer to inspect installers before running them? See [Installation](docs/installation.md).
 
 Enable Claude Code hooks:
 
@@ -74,7 +76,7 @@ veto check -v "git push -f origin main"
 Install (script downloads the correct binary):
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/runkids/veto/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/runkids/veto/main/install.sh | bash
 ```
 
 Enable Claude Code hooks (optional):
@@ -100,7 +102,13 @@ veto setup claude
 Uninstall:
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/runkids/veto/main/uninstall.sh | bash
+curl -fsSL https://raw.githubusercontent.com/runkids/veto/main/uninstall.sh | bash
+```
+
+Full uninstall (including keychain secrets):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/runkids/veto/main/uninstall.sh | bash -s -- --purge
 ```
 
 Remove Claude Code hooks only:

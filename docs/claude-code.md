@@ -3,6 +3,7 @@
 ## Quick Setup
 
 ```bash
+veto init             # Create config (first time)
 veto setup claude      # Install hooks
 veto doctor            # Verify setup
 ```
@@ -77,6 +78,9 @@ To remove: `veto setup claude --uninstall`
 | ✗ Cancel | `{"continue":false}` | **AI stops completely** |
 | ✗ Verification failed | `{"continue":false}` | **AI stops completely** |
 
+When a command requires verification but no credentials were provided (common in Claude mode for `pin` / `totp` / `confirm`):
+- veto exits non-zero and prints an instruction telling the AI to ask you for a code and retry with `VETO_PIN=...` / `VETO_TOTP=...` / `VETO_CONFIRM=yes`.
+
 When user cancels authentication:
 - veto outputs JSON with `"permissionDecision": "deny"` and `"continue": false`
 - Claude Code receives this and **stops all processing**
@@ -138,10 +142,10 @@ veto doctor
 
 ```bash
 echo '{"tool_input":{"command":"ls -la"}}' | veto gate --claude
-# Should output nothing for ALLOW commands
+# ALLOW commands should exit 0 (often with no output)
 
 echo '{"tool_input":{"command":"rm -rf /"}}' | veto gate --claude
-# Should prompt for authentication
+# Should require verification (and may instruct Claude to ask you for a code)
 ```
 
 ### View Risk Level
@@ -163,7 +167,13 @@ veto gate --claude --totp 123456
 veto gate --claude --pin 1234
 ```
 
-This is useful for CI/CD pipelines with pre-approved commands.
+This is primarily useful inside the Claude Code hook (Claude provides stdin JSON with the command).
+
+For a manual test, include stdin JSON:
+
+```bash
+echo '{"tool_input":{"command":"rm -rf /"}}' | veto gate --claude --totp 123456
+```
 
 ## Other AI Tools
 

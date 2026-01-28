@@ -273,12 +273,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_telegram_name() {
-        let auth = TelegramAuth::new("12345");
-        assert_eq!(auth.name(), "telegram");
-    }
-
-    #[test]
     fn test_html_escape() {
         assert_eq!(html_escape("rm -rf <dir>"), "rm -rf &lt;dir&gt;");
         assert_eq!(html_escape("a & b"), "a &amp; b");

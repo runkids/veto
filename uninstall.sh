@@ -1,6 +1,8 @@
 #!/bin/bash
 # veto uninstaller
 # Usage: curl -sSL https://raw.githubusercontent.com/runkids/veto/main/uninstall.sh | bash
+# Options:
+#   --purge    Also remove keychain secrets (PIN, TOTP, Telegram credentials)
 
 set -e
 
@@ -14,24 +16,137 @@ info() { echo -e "${CYAN}$1${NC}"; }
 success() { echo -e "${GREEN}$1${NC}"; }
 warn() { echo -e "${YELLOW}$1${NC}"; }
 
-INSTALL_DIR="${VETO_INSTALL_DIR:-/usr/local/bin}"
+PURGE=false
+for arg in "$@"; do
+    case $arg in
+        --purge) PURGE=true ;;
+    esac
+done
+
 VETO_DIR="${VETO_HOME:-${HOME}/.veto}"
+CLAUDE_SETTINGS="${HOME}/.claude/settings.json"
+OPENCODE_PLUGIN="${HOME}/.opencode/plugins/veto-gate.js"
+
+# Keychain keys used by veto
+KEYCHAIN_KEYS=(
+    "veto.pin.hash"
+    "veto.pin.salt"
+    "veto.totp.secret"
+    "veto.telegram.token"
+)
+
+# Check if keychain has veto secrets, return count
+count_keychain_secrets() {
+    local count=0
+
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        for key in "${KEYCHAIN_KEYS[@]}"; do
+            security find-generic-password -s "$key" &>/dev/null && ((count++)) || true
+        done
+    elif command -v secret-tool &>/dev/null; then
+        for key in "${KEYCHAIN_KEYS[@]}"; do
+            secret-tool lookup service "$key" &>/dev/null && ((count++)) || true
+        done
+    fi
+
+    echo $count
+}
+
+# Remove secrets from system keychain
+remove_keychain_secrets() {
+    local removed=0
+
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        for key in "${KEYCHAIN_KEYS[@]}"; do
+            if security find-generic-password -s "$key" &>/dev/null; then
+                security delete-generic-password -s "$key" &>/dev/null && ((removed++)) || true
+            fi
+        done
+    elif command -v secret-tool &>/dev/null; then
+        for key in "${KEYCHAIN_KEYS[@]}"; do
+            secret-tool clear service "$key" &>/dev/null && ((removed++)) || true
+        done
+    else
+        warn "Cannot detect keychain backend"
+        return
+    fi
+
+    if [ $removed -gt 0 ]; then
+        success "✓ Keychain secrets removed ($removed items)"
+    fi
+}
+
+# Remove veto hooks from Claude Code settings.json
+remove_claude_hooks() {
+    if [ ! -f "$CLAUDE_SETTINGS" ]; then
+        return
+    fi
+
+    # Check if jq is available
+    if ! command -v jq &> /dev/null; then
+        warn "jq not found, cannot auto-remove Claude Code hooks"
+        warn "Please manually remove veto hooks from ${CLAUDE_SETTINGS}"
+        return
+    fi
+
+    # Check if settings contains veto hooks
+    if ! grep -q "veto gate" "$CLAUDE_SETTINGS" 2>/dev/null; then
+        return
+    fi
+
+    info "Removing veto hooks from Claude Code..."
+
+    # Remove hooks containing "veto gate" from PreToolUse array
+    local temp_file="${CLAUDE_SETTINGS}.tmp"
+    jq '
+        if .hooks.PreToolUse then
+            .hooks.PreToolUse |= map(
+                select(
+                    (.hooks // []) | all(
+                        (.command // "") | contains("veto gate") | not
+                    )
+                )
+            )
+            | if .hooks.PreToolUse == [] then del(.hooks.PreToolUse) else . end
+            | if .hooks == {} then del(.hooks) else . end
+        else
+            .
+        end
+    ' "$CLAUDE_SETTINGS" > "$temp_file" && mv "$temp_file" "$CLAUDE_SETTINGS"
+
+    success "✓ Claude Code hooks removed"
+}
+
+# Remove veto plugin from OpenCode
+remove_opencode_plugin() {
+    if [ -f "$OPENCODE_PLUGIN" ]; then
+        info "Removing OpenCode plugin..."
+        rm -f "$OPENCODE_PLUGIN"
+        success "✓ OpenCode plugin removed"
+    fi
+}
 
 main() {
     info "Uninstalling veto..."
     echo
 
-    # Remove binary
-    if [ -f "${INSTALL_DIR}/veto" ]; then
-        info "Removing ${INSTALL_DIR}/veto..."
-        if [ -w "$INSTALL_DIR" ]; then
-            rm -f "${INSTALL_DIR}/veto"
+    # Find and remove all veto binaries in PATH
+    local binary_removed=0
+    local veto_path
+
+    while veto_path=$(which veto 2>/dev/null) && [ -n "$veto_path" ]; do
+        info "Removing ${veto_path}..."
+        if [ -w "$(dirname "$veto_path")" ]; then
+            rm -f "$veto_path"
         else
-            sudo rm -f "${INSTALL_DIR}/veto"
+            sudo rm -f "$veto_path"
         fi
         success "✓ Binary removed"
-    else
-        warn "Binary not found at ${INSTALL_DIR}/veto"
+        ((binary_removed++))
+    done
+
+    if [ $binary_removed -eq 0 ]; then
+        warn "No veto binary found in PATH"
     fi
 
     # Remove veto directory (config + secrets)
@@ -48,11 +163,30 @@ main() {
         success "✓ Legacy config removed"
     fi
 
+    # Remove Claude Code hooks
+    remove_claude_hooks
+
+    # Remove OpenCode plugin
+    remove_opencode_plugin
+
+    # Handle keychain secrets
+    local secret_count
+    secret_count=$(count_keychain_secrets)
+
+    if [ "$secret_count" -gt 0 ]; then
+        if [ "$PURGE" = true ]; then
+            info "Removing keychain secrets..."
+            remove_keychain_secrets
+        else
+            echo
+            warn "Keychain secrets found ($secret_count items)"
+            warn "Run with --purge to remove them:"
+            warn "  curl -sSL https://raw.githubusercontent.com/runkids/veto/main/uninstall.sh | bash -s -- --purge"
+        fi
+    fi
+
     echo
     success "✓ veto uninstalled successfully!"
-    echo
-    warn "Note: Secrets stored in system Keychain are not removed."
-    warn "Use 'security delete-generic-password -s veto' to remove them manually."
 }
 
 main "$@"

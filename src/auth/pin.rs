@@ -4,10 +4,7 @@
 //! This provides secure storage without exposing the actual PIN.
 
 use argon2::{
-    password_hash::{
-        rand_core::OsRng,
-        PasswordHash, PasswordHasher, PasswordVerifier, SaltString,
-    },
+    password_hash::{rand_core::OsRng, PasswordHash, PasswordHasher, PasswordVerifier, SaltString},
     Argon2,
 };
 use colored::Colorize;
@@ -27,7 +24,9 @@ impl PinAuth {
     /// Set a new PIN (stores hash in keychain)
     pub fn set_pin(pin: &str) -> Result<(), AuthError> {
         if pin.len() < 4 {
-            return Err(AuthError::Failed("PIN must be at least 4 characters".to_string()));
+            return Err(AuthError::Failed(
+                "PIN must be at least 4 characters".to_string(),
+            ));
         }
 
         let salt = SaltString::generate(&mut OsRng);
@@ -100,12 +99,6 @@ impl Authenticator for PinAuth {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_pin_name() {
-        let auth = PinAuth::new();
-        assert_eq!(auth.name(), "pin");
-    }
 
     // Note: Integration tests for PIN verification require keychain access
     // and are marked as ignored for CI

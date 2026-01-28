@@ -91,6 +91,8 @@ timeout_seconds = 60            # Wait time for /allow or /deny
 | `high` | string | Auth for HIGH risk commands |
 | `critical` | string | Auth for CRITICAL risk commands |
 
+Note: `auth.levels` currently selects a single primary method per level. If an older config uses an array (multiple methods), veto will use the first element only for backwards compatibility.
+
 ### [auth.fallback]
 
 | Key | Type | Description |
