@@ -14,11 +14,17 @@
 
 <p align="center">
   <strong>Risk evaluation + authentication gate for shell commands.</strong><br>
-  Built for Claude Code & OpenCode, and works great as a standalone CLI.
+  Built for Claude Code, Gemini CLI, & OpenCode, and works great as a standalone CLI.
 </p>
 
 <p align="center">
   <img src="docs/assets/VetoIntro.gif" alt="Veto Demo" width="600">
+</p>
+
+<p align="center">
+  <a href="https://github.com/user-attachments/assets/e9424130-e5ab-4b58-afc6-b7efc356c90a" target="_blank" rel="noopener">
+    <img src="docs/assets/gemini-demo.png" alt="Gemini CLI hook demo" width="600">
+  </a>
 </p>
 
 ---
@@ -35,7 +41,7 @@ If it’s safe, it runs. If it’s risky, you must approve.
 
 ## Who Is This For?
 
-- AI coding users who allow tools to execute shell commands (Claude Code, OpenCode)
+- AI coding users who allow tools to execute shell commands (Claude Code, Gemini CLI, OpenCode)
 - Developers who want guardrails for destructive commands (`rm -rf`, `git push -f`, `chmod -R`)
 - Teams that need a simple audit trail for command execution decisions
 
@@ -119,6 +125,7 @@ Build from source: [Installation](docs/installation.md).
 ```bash
 veto init
 veto setup claude    # Claude Code
+veto setup gemini    # Gemini CLI
 veto setup opencode  # OpenCode
 veto doctor
 ```
@@ -151,6 +158,7 @@ For full instructions and options, see:
 
 - [Installation](docs/installation.md)
 - [Claude Code integration](docs/claude-code.md)
+- [Gemini CLI integration](docs/geminicli.md)
 - [OpenCode integration](docs/opencode.md)
 
 ---
@@ -251,6 +259,7 @@ veto log --clear
 - [Rules](docs/rules.md)
 - [Authentication](docs/authentication.md)
 - [Claude Code Integration](docs/claude-code.md)
+- [Gemini CLI Integration](docs/geminicli.md)
 - [OpenCode Integration](docs/opencode.md)
 - [Troubleshooting](docs/troubleshooting.md)
 
