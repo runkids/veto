@@ -26,6 +26,7 @@ done
 VETO_DIR="${VETO_HOME:-${HOME}/.veto}"
 CLAUDE_SETTINGS="${HOME}/.claude/settings.json"
 OPENCODE_PLUGIN="${HOME}/.opencode/plugins/veto-gate.js"
+CURSOR_HOOKS="${HOME}/.cursor/hooks.json"
 
 # Keychain keys used by veto
 KEYCHAIN_KEYS=(
@@ -126,6 +127,42 @@ remove_opencode_plugin() {
     fi
 }
 
+# Remove veto hooks from Cursor CLI hooks.json
+remove_cursor_hooks() {
+    if [ ! -f "$CURSOR_HOOKS" ]; then
+        return
+    fi
+
+    if ! command -v jq &> /dev/null; then
+        warn "jq not found, cannot auto-remove Cursor CLI hooks"
+        warn "Please manually remove veto hooks from ${CURSOR_HOOKS}"
+        return
+    fi
+
+    if ! grep -q "veto gate" "$CURSOR_HOOKS" 2>/dev/null; then
+        return
+    fi
+
+    info "Removing veto hooks from Cursor CLI..."
+
+    local temp_file="${CURSOR_HOOKS}.tmp"
+    jq '
+        if .hooks.beforeShellExecution then
+            .hooks.beforeShellExecution |= map(
+                select(
+                    (.command // "") | contains("veto gate") | not
+                )
+            )
+            | if .hooks.beforeShellExecution == [] then del(.hooks.beforeShellExecution) else . end
+            | if .hooks == {} then del(.hooks) else . end
+        else
+            .
+        end
+    ' "$CURSOR_HOOKS" > "$temp_file" && mv "$temp_file" "$CURSOR_HOOKS"
+
+    success "✓ Cursor CLI hooks removed"
+}
+
 main() {
     info "Uninstalling veto..."
     echo
@@ -168,6 +205,9 @@ main() {
 
     # Remove OpenCode plugin
     remove_opencode_plugin
+
+    # Remove Cursor CLI hooks
+    remove_cursor_hooks
 
     # Handle keychain secrets
     local secret_count

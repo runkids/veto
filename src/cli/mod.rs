@@ -90,20 +90,24 @@ pub struct LogArgs {
 
 #[derive(Args)]
 pub struct GateArgs {
-    /// Command to verify (optional if using --claude/--gemini)
+    /// Command to verify (optional if using --claude/--gemini/--cursor)
     pub command: Option<String>,
 
     /// Read command from Claude Code stdin JSON format
-    #[arg(long, conflicts_with_all = ["command", "opencode", "gemini"])]
+    #[arg(long, conflicts_with_all = ["command", "opencode", "gemini", "cursor"])]
     pub claude: bool,
 
     /// Read command from Gemini CLI stdin JSON format
-    #[arg(long, conflicts_with_all = ["command", "opencode", "claude"])]
+    #[arg(long, conflicts_with_all = ["command", "opencode", "claude", "cursor"])]
     pub gemini: bool,
 
     /// OpenCode mode - use dialog/touchid auth, don't suggest env var bypass
-    #[arg(long, conflicts_with_all = ["claude", "gemini"])]
+    #[arg(long, conflicts_with_all = ["claude", "gemini", "cursor"])]
     pub opencode: bool,
+
+    /// Cursor CLI mode - read command from stdin JSON and return hooks response
+    #[arg(long, conflicts_with_all = ["claude", "gemini", "opencode"])]
+    pub cursor: bool,
 
     /// Override authentication method
     #[arg(long)]
@@ -135,6 +139,12 @@ pub enum SetupCommands {
     /// Setup OpenCode plugin integration
     Opencode {
         /// Remove veto plugin from OpenCode
+        #[arg(long)]
+        uninstall: bool,
+    },
+    /// Setup Cursor CLI hooks integration
+    Cursor {
+        /// Remove veto hook from Cursor CLI
         #[arg(long)]
         uninstall: bool,
     },

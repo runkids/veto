@@ -25,6 +25,7 @@ use commands::{
     run_setup_claude,
     run_setup_gemini,
     run_setup_opencode,
+    run_setup_cursor,
     run_upgrade,
     run_log,
 };
@@ -57,11 +58,19 @@ fn main() {
                         std::process::exit(1);
                     }
                 }
+            } else if args.cursor {
+                match read_cursor_stdin_command() {
+                    Ok(cmd) => cmd,
+                    Err(e) => {
+                        eprintln!("{} {}", "Error reading Cursor stdin:".red(), e);
+                        std::process::exit(1);
+                    }
+                }
             } else {
                 match args.command {
                     Some(cmd) => cmd,
                     None => {
-                        eprintln!("{}", "Error: command required (or use --claude/--gemini/--opencode)".red());
+                        eprintln!("{}", "Error: command required (or use --claude/--gemini/--opencode/--cursor)".red());
                         std::process::exit(1);
                     }
                 }
@@ -76,6 +85,7 @@ fn main() {
                 args.claude,
                 args.opencode,
                 args.gemini,
+                args.cursor,
             );
         }
         Commands::Init { force } => {
@@ -115,6 +125,12 @@ fn main() {
                 }
                 SetupCommands::Gemini { uninstall } => {
                     if let Err(e) = run_setup_gemini(uninstall) {
+                        eprintln!("{} {}", "Error:".red(), e);
+                        std::process::exit(1);
+                    }
+                }
+                SetupCommands::Cursor { uninstall } => {
+                    if let Err(e) = run_setup_cursor(uninstall) {
                         eprintln!("{} {}", "Error:".red(), e);
                         std::process::exit(1);
                     }
@@ -168,6 +184,23 @@ fn read_gemini_stdin_command() -> Result<String, Box<dyn std::error::Error>> {
         .as_str()
         .map(String::from)
         .ok_or_else(|| "No command found in Gemini JSON (expected tool_input.command)".into())
+}
+
+/// Read command from Cursor CLI stdin JSON format
+///
+/// Cursor CLI sends JSON like:
+/// {"command":"rm -rf test","cwd":"/path/to/project"}
+fn read_cursor_stdin_command() -> Result<String, Box<dyn std::error::Error>> {
+    use std::io::Read;
+    let mut input = String::new();
+    std::io::stdin().read_to_string(&mut input)?;
+
+    let json: serde_json::Value = serde_json::from_str(&input)?;
+
+    json["command"]
+        .as_str()
+        .map(String::from)
+        .ok_or_else(|| "No command found in Cursor JSON (expected command)".into())
 }
 
 fn run_check(engine: &RulesEngine, command: &str, verbose: bool) {
@@ -258,6 +291,7 @@ fn run_gate(
     claude_mode: bool,
     opencode_mode: bool,
     gemini_mode: bool,
+    cursor_mode: bool,
 ) {
     // Parse environment variable prefixes from command string
     let (cmd_env_vars, actual_command) = parse_env_prefix(command);
@@ -281,6 +315,9 @@ fn run_gate(
     if matches!(result.level, RiskLevel::Allow) {
         if gemini_mode {
             let json = serde_json::json!({ "decision": "allow" });
+            println!("{}", json);
+        } else if cursor_mode {
+            let json = serde_json::json!({ "continue": true, "permission": "allow" });
             println!("{}", json);
         }
         std::process::exit(0);
@@ -311,6 +348,9 @@ fn run_gate(
         if gemini_mode {
             let json = serde_json::json!({ "decision": "allow" });
             println!("{}", json);
+        } else if cursor_mode {
+            let json = serde_json::json!({ "continue": true, "permission": "allow" });
+            println!("{}", json);
         }
         std::process::exit(0);
     }
@@ -337,17 +377,17 @@ fn run_gate(
     let has_response = env_response.is_some();
 
     // Check if this rule requires challenge-response authentication
-    let requires_challenge = result.challenge && (claude_mode || opencode_mode || gemini_mode);
+    let requires_challenge = result.challenge && (claude_mode || opencode_mode || gemini_mode || cursor_mode);
 
     // Handle challenge-response verification if VETO_RESPONSE is provided
     if requires_challenge && has_response {
         if let Some(response) = &env_response {
             let verify_result = verify_response(response, eval_command, primary_method);
             if verify_result.success {
-                output_allowed(eval_command, &result.level, &verify_result.method, claude_mode, gemini_mode);
+                output_allowed(eval_command, &result.level, &verify_result.method, claude_mode, gemini_mode, cursor_mode);
             } else {
                 let error_msg = verify_result.error.unwrap_or_else(|| "Challenge verification failed".to_string());
-                output_blocked(eval_command, &result.level, &error_msg, claude_mode, gemini_mode);
+                output_blocked(eval_command, &result.level, &error_msg, claude_mode, gemini_mode, cursor_mode);
             }
         }
     }
@@ -360,21 +400,24 @@ fn run_gate(
                 let auth = TotpAuth::new();
                 if !auth.is_available() {
                     let msg = "[veto] TOTP not configured. User must run 'veto auth setup-totp' first to enable TOTP authentication.";
-                    if gemini_mode {
-                        output_blocked(eval_command, &result.level, msg, claude_mode, gemini_mode);
+                    if gemini_mode || cursor_mode {
+                        output_blocked(eval_command, &result.level, msg, claude_mode, gemini_mode, cursor_mode);
                     } else {
                         eprintln!("{}", msg);
                         std::process::exit(2);
                     }
                 }
                 // TOTP configured - ask for code
-                if claude_mode || opencode_mode || gemini_mode {
+                if cursor_mode {
+                    let msg = "[veto] TOTP required, but Cursor CLI hooks cannot accept codes. Run the command in a terminal with VETO_TOTP=<code> or configure dialog/touchid.";
+                    output_blocked(eval_command, &result.level, msg, claude_mode, gemini_mode, cursor_mode);
+                } else if claude_mode || opencode_mode || gemini_mode {
                     let msg = format!(
                         "[veto] {} command blocked. Ask user in chat for their TOTP code. If provided, retry command with VETO_TOTP=<code> prefix.",
                         risk_level_str(&result.level)
                     );
                     if gemini_mode {
-                        output_blocked(eval_command, &result.level, &msg, claude_mode, gemini_mode);
+                        output_blocked(eval_command, &result.level, &msg, claude_mode, gemini_mode, cursor_mode);
                     } else {
                         eprintln!("{}", msg);
                         std::process::exit(2);
@@ -396,15 +439,22 @@ fn run_gate(
                 let auth = PinAuth::new();
                 if !auth.is_available() {
                     let msg = "[veto] PIN not configured. User must run 'veto auth set-pin' first to enable PIN authentication.";
-                    if gemini_mode {
-                        output_blocked(eval_command, &result.level, msg, claude_mode, gemini_mode);
+                    if gemini_mode || cursor_mode {
+                        output_blocked(eval_command, &result.level, msg, claude_mode, gemini_mode, cursor_mode);
                     } else {
                         eprintln!("{}", msg);
                         std::process::exit(2);
                     }
                 }
                 // PIN configured - ask for code
-                if claude_mode || opencode_mode || gemini_mode {
+                if cursor_mode {
+                    let msg = if requires_challenge {
+                        "[veto] PIN+challenge required, but Cursor CLI hooks cannot accept codes. Run the command in a terminal with VETO_RESPONSE=<PIN><challenge> or configure dialog/touchid."
+                    } else {
+                        "[veto] PIN required, but Cursor CLI hooks cannot accept codes. Run the command in a terminal with VETO_PIN=<code> or configure dialog/touchid."
+                    };
+                    output_blocked(eval_command, &result.level, msg, claude_mode, gemini_mode, cursor_mode);
+                } else if claude_mode || opencode_mode || gemini_mode {
                     if requires_challenge {
                         // Generate challenge and send notification
                         match Challenge::generate(eval_command) {
@@ -417,7 +467,7 @@ fn run_gate(
                                     risk_level_str(&result.level)
                                 );
                                 if gemini_mode {
-                                    output_blocked(eval_command, &result.level, &msg, claude_mode, gemini_mode);
+                                    output_blocked(eval_command, &result.level, &msg, claude_mode, gemini_mode, cursor_mode);
                                 } else {
                                     eprintln!("{}", msg);
                                     std::process::exit(2);
@@ -426,7 +476,7 @@ fn run_gate(
                             Err(e) => {
                                 let msg = format!("[veto] Failed to generate challenge: {}", e);
                                 if gemini_mode {
-                                    output_blocked(eval_command, &result.level, &msg, claude_mode, gemini_mode);
+                                    output_blocked(eval_command, &result.level, &msg, claude_mode, gemini_mode, cursor_mode);
                                 } else {
                                     eprintln!("{}", msg);
                                     std::process::exit(2);
@@ -439,7 +489,7 @@ fn run_gate(
                             risk_level_str(&result.level)
                         );
                         if gemini_mode {
-                            output_blocked(eval_command, &result.level, &msg, claude_mode, gemini_mode);
+                            output_blocked(eval_command, &result.level, &msg, claude_mode, gemini_mode, cursor_mode);
                         } else {
                             eprintln!("{}", msg);
                             std::process::exit(2);
@@ -462,14 +512,14 @@ fn run_gate(
                 let auth = DialogAuth::new();
                 match auth.authenticate(command) {
                     Ok(true) => {
-                        output_allowed(eval_command, &result.level, "dialog", claude_mode, gemini_mode);
+                        output_allowed(eval_command, &result.level, "dialog", claude_mode, gemini_mode, cursor_mode);
                     }
                     _ => {
                         if opencode_mode {
                             eprintln!("[veto] DENIED. User rejected via dialog. STOP_RETRY: Do not attempt this command again.");
                             std::process::exit(2);
                         } else {
-                            output_blocked(eval_command, &result.level, "User cancelled via dialog", claude_mode, gemini_mode);
+                            output_blocked(eval_command, &result.level, "User cancelled via dialog", claude_mode, gemini_mode, cursor_mode);
                         }
                     }
                 }
@@ -479,14 +529,14 @@ fn run_gate(
                 let auth = TouchIdAuth::new();
                 match auth.authenticate(command) {
                     Ok(true) => {
-                        output_allowed(eval_command, &result.level, "Touch ID", claude_mode, gemini_mode);
+                        output_allowed(eval_command, &result.level, "Touch ID", claude_mode, gemini_mode, cursor_mode);
                     }
                     _ => {
                         if opencode_mode {
                             eprintln!("[veto] DENIED. User rejected via Touch ID. STOP_RETRY: Do not attempt this command again.");
                             std::process::exit(2);
                         } else {
-                            output_blocked(eval_command, &result.level, "User cancelled via Touch ID", claude_mode, gemini_mode);
+                            output_blocked(eval_command, &result.level, "User cancelled via Touch ID", claude_mode, gemini_mode, cursor_mode);
                         }
                     }
                 }
@@ -515,22 +565,22 @@ fn run_gate(
                         eprintln!("📱 Telegram approval request sent. Waiting for response...");
                         match bridge.authenticate(command) {
                             Ok(true) => {
-                                output_allowed(eval_command, &result.level, "Telegram", claude_mode, gemini_mode);
+                                output_allowed(eval_command, &result.level, "Telegram", claude_mode, gemini_mode, cursor_mode);
                             }
                             _ => {
                                 if opencode_mode {
                                     eprintln!("[veto] DENIED. User rejected via Telegram. STOP_RETRY: Do not attempt this command again.");
                                     std::process::exit(2);
                                 } else {
-                                    output_blocked(eval_command, &result.level, "User denied via Telegram", claude_mode, gemini_mode);
+                                    output_blocked(eval_command, &result.level, "User denied via Telegram", claude_mode, gemini_mode, cursor_mode);
                                 }
                             }
                         }
                     }
                     None => {
                         let msg = "Telegram not configured. Run 'veto auth setup-telegram' first.";
-                        if gemini_mode {
-                            output_blocked(eval_command, &result.level, msg, claude_mode, gemini_mode);
+                        if gemini_mode || cursor_mode {
+                            output_blocked(eval_command, &result.level, msg, claude_mode, gemini_mode, cursor_mode);
                         } else {
                             eprintln!("{}", msg);
                             std::process::exit(2);
@@ -542,11 +592,27 @@ fn run_gate(
                 // Check environment variable first (already parsed above)
                 if let Some(ref val) = env_confirm {
                     if val.to_lowercase() == "yes" || val == "1" || val.to_lowercase() == "true" {
-                        output_allowed(eval_command, &result.level, "VETO_CONFIRM", claude_mode, gemini_mode);
+                        output_allowed(eval_command, &result.level, "VETO_CONFIRM", claude_mode, gemini_mode, cursor_mode);
                     }
                 }
 
-                if opencode_mode || claude_mode || gemini_mode {
+                if cursor_mode {
+                    if requires_challenge {
+                        let msg = "[veto] Challenge confirmation required, but Cursor CLI hooks cannot accept codes. Run the command in a terminal with VETO_RESPONSE=<challenge> or configure dialog/touchid.";
+                        output_blocked(eval_command, &result.level, msg, claude_mode, gemini_mode, cursor_mode);
+                    } else {
+                        let user_message = format!(
+                            "{} command requires approval.",
+                            risk_level_str(&result.level)
+                        );
+                        let agent_message = format!(
+                            "{}: {}",
+                            reason,
+                            eval_command
+                        );
+                        output_cursor_ask(eval_command, &result.level, &user_message, &agent_message);
+                    }
+                } else if opencode_mode || claude_mode || gemini_mode {
                     if requires_challenge {
                         // Generate challenge and send notification
                         match Challenge::generate(eval_command) {
@@ -559,7 +625,7 @@ fn run_gate(
                                     risk_level_str(&result.level)
                                 );
                                 if gemini_mode {
-                                    output_blocked(eval_command, &result.level, &msg, claude_mode, gemini_mode);
+                                    output_blocked(eval_command, &result.level, &msg, claude_mode, gemini_mode, cursor_mode);
                                 } else {
                                     eprintln!("{}", msg);
                                     std::process::exit(2);
@@ -568,7 +634,7 @@ fn run_gate(
                             Err(e) => {
                                 let msg = format!("[veto] Failed to generate challenge: {}", e);
                                 if gemini_mode {
-                                    output_blocked(eval_command, &result.level, &msg, claude_mode, gemini_mode);
+                                    output_blocked(eval_command, &result.level, &msg, claude_mode, gemini_mode, cursor_mode);
                                 } else {
                                     eprintln!("{}", msg);
                                     std::process::exit(2);
@@ -583,7 +649,7 @@ fn run_gate(
                             eval_command
                         );
                         if gemini_mode {
-                            output_blocked(eval_command, &result.level, &msg, claude_mode, gemini_mode);
+                            output_blocked(eval_command, &result.level, &msg, claude_mode, gemini_mode, cursor_mode);
                         } else {
                             eprintln!("{}", msg);
                             std::process::exit(2);
@@ -594,10 +660,10 @@ fn run_gate(
                     let auth = ConfirmAuth::new();
                     match auth.authenticate(command) {
                         Ok(true) => {
-                            output_allowed(eval_command, &result.level, "confirmation", claude_mode, gemini_mode);
+                            output_allowed(eval_command, &result.level, "confirmation", claude_mode, gemini_mode, cursor_mode);
                         }
                         _ => {
-                            output_blocked(eval_command, &result.level, "User cancelled confirmation", claude_mode, gemini_mode);
+                            output_blocked(eval_command, &result.level, "User cancelled confirmation", claude_mode, gemini_mode, cursor_mode);
                         }
                     }
                 }
@@ -605,8 +671,8 @@ fn run_gate(
             _ => {
                 // Default: require setup
                 let msg = "No suitable auth method configured. Run 'veto auth setup-totp' or 'veto auth set-pin' first.";
-                if gemini_mode {
-                    output_blocked(eval_command, &result.level, msg, claude_mode, gemini_mode);
+                if gemini_mode || cursor_mode {
+                    output_blocked(eval_command, &result.level, msg, claude_mode, gemini_mode, cursor_mode);
                 } else {
                     eprintln!("{}", "⚠️  AUTH_REQUIRED".red().bold());
                     eprintln!("{}", msg);
@@ -630,9 +696,9 @@ fn run_gate(
     };
 
     if verified {
-        output_allowed(eval_command, &result.level, method, claude_mode, gemini_mode);
+        output_allowed(eval_command, &result.level, method, claude_mode, gemini_mode, cursor_mode);
     } else {
-        output_blocked(eval_command, &result.level, "Verification failed", claude_mode, gemini_mode);
+        output_blocked(eval_command, &result.level, "Verification failed", claude_mode, gemini_mode, cursor_mode);
     }
 }
 
@@ -654,6 +720,7 @@ fn output_allowed(
     method: &str,
     claude_mode: bool,
     gemini_mode: bool,
+    cursor_mode: bool,
 ) -> ! {
     // Log to audit trail
     audit::log_audit(&audit::AuditEntry {
@@ -681,6 +748,13 @@ fn output_allowed(
         });
         println!("{}", json);
         std::process::exit(0);
+    } else if cursor_mode {
+        let json = serde_json::json!({
+            "continue": true,
+            "permission": "allow"
+        });
+        println!("{}", json);
+        std::process::exit(0);
     } else {
         eprintln!("{}", format!("✓ Approved via {}", method).green());
         std::process::exit(0);
@@ -694,6 +768,7 @@ fn output_blocked(
     reason: &str,
     claude_mode: bool,
     gemini_mode: bool,
+    cursor_mode: bool,
 ) -> ! {
     // Log to audit trail
     audit::log_audit(&audit::AuditEntry {
@@ -724,11 +799,44 @@ fn output_blocked(
         });
         println!("{}", json);
         std::process::exit(0);
+    } else if cursor_mode {
+        let json = serde_json::json!({
+            "continue": false,
+            "permission": "deny",
+            "user_message": reason,
+            "agent_message": reason
+        });
+        println!("{}", json);
+        std::process::exit(0);
     } else {
         // Normal mode: text message with exit code 2 (blocking)
         eprintln!("{}", reason.red());
         std::process::exit(2);
     }
+}
+
+/// Output ask message for Cursor CLI (permission prompt handled by Cursor)
+fn output_cursor_ask(
+    command: &str,
+    risk_level: &RiskLevel,
+    user_message: &str,
+    agent_message: &str,
+) -> ! {
+    audit::log_audit(&audit::AuditEntry {
+        command: command.to_string(),
+        risk_level: risk_level.clone(),
+        result: audit::AuditResult::Blocked,
+        auth_method: None,
+    });
+
+    let json = serde_json::json!({
+        "continue": true,
+        "permission": "ask",
+        "user_message": user_message,
+        "agent_message": agent_message
+    });
+    println!("{}", json);
+    std::process::exit(0);
 }
 
 /// Verify TOTP code

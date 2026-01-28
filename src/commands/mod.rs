@@ -14,9 +14,11 @@ pub use setup::{
     run_setup_claude,
     run_setup_gemini,
     run_setup_opencode,
+    run_setup_cursor,
     is_claude_configured,
     is_gemini_configured,
     is_opencode_configured,
+    is_cursor_configured,
 };
 pub use upgrade::run_upgrade;
 pub use log::run_log;

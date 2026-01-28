@@ -251,5 +251,6 @@ veto supports multiple AI coding assistants:
 | Claude Code | ✅ Supported | `veto setup claude` |
 | Gemini CLI | ✅ Supported | `veto setup gemini` |
 | OpenCode | ✅ Supported | `veto setup opencode` |
+| Cursor CLI | ✅ Supported | `veto setup cursor` |
 
-See [Gemini CLI Integration](geminicli.md) and [OpenCode Integration](opencode.md) for setup details.
+See [Gemini CLI Integration](geminicli.md), [OpenCode Integration](opencode.md), and [Cursor CLI Integration](cursorcli.md) for setup details.

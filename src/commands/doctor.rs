@@ -1,7 +1,7 @@
 use colored::Colorize;
 
 use crate::auth::keyring::SecureKeyring;
-use crate::commands::{is_claude_configured, is_gemini_configured};
+use crate::commands::{is_claude_configured, is_gemini_configured, is_cursor_configured};
 use crate::config::{get_config_dir, load_config};
 
 pub fn run_doctor() {
@@ -150,6 +150,29 @@ pub fn run_doctor() {
                 println!("{} veto hooks configured", "✓".green());
             } else {
                 println!("{} exists but no veto hooks (run `veto setup gemini`)", "○".yellow());
+            }
+        }
+        Some(_) => {
+            println!("{} not found (optional)", "○".yellow());
+        }
+        None => {
+            println!("{} cannot determine path", "○".yellow());
+        }
+    }
+
+    // Cursor CLI integration
+    println!();
+    println!("{}", "Cursor CLI Integration:".bold());
+    let cursor_hooks = dirs::home_dir()
+        .map(|h| h.join(".cursor").join("hooks.json"));
+
+    print!("  hooks.json: ");
+    match cursor_hooks {
+        Some(path) if path.exists() => {
+            if is_cursor_configured() {
+                println!("{} veto hooks configured", "✓".green());
+            } else {
+                println!("{} exists but no veto hooks (run `veto setup cursor`)", "○".yellow());
             }
         }
         Some(_) => {

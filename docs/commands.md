@@ -23,6 +23,8 @@
 | `veto setup gemini --uninstall` | Remove Gemini CLI hooks |
 | `veto setup opencode` | Setup OpenCode plugin |
 | `veto setup opencode --uninstall` | Remove OpenCode plugin |
+| `veto setup cursor` | Setup Cursor CLI hooks |
+| `veto setup cursor --uninstall` | Remove Cursor CLI hooks |
 
 ## Authentication Commands
 
@@ -45,6 +47,7 @@
 | `--claude` | Read command from Claude Code stdin JSON (gate only) |
 | `--gemini` | Read command from Gemini CLI stdin JSON (gate only) |
 | `--opencode` | OpenCode mode - uses config.toml auth (gate only) |
+| `--cursor` | Read command from Cursor CLI stdin JSON (gate only) |
 | `--totp <code>` | Pass TOTP code directly (gate only) |
 | `--pin <code>` | Pass PIN directly (gate only) |
 | `--check` | Only check for updates (upgrade only) |

@@ -12,6 +12,11 @@ fn get_gemini_settings_path() -> Option<PathBuf> {
     dirs::home_dir().map(|h| h.join(".gemini").join("settings.json"))
 }
 
+/// Get Cursor CLI hooks path
+fn get_cursor_hooks_path() -> Option<PathBuf> {
+    dirs::home_dir().map(|h| h.join(".cursor").join("hooks.json"))
+}
+
 /// Check if veto hooks are already configured in Claude Code
 pub fn is_claude_configured() -> bool {
     let Some(path) = get_claude_settings_path() else {
@@ -89,6 +94,37 @@ pub fn is_gemini_configured() -> bool {
         .unwrap_or(false)
 }
 
+/// Check if veto hooks are already configured in Cursor CLI
+pub fn is_cursor_configured() -> bool {
+    let Some(path) = get_cursor_hooks_path() else {
+        return false;
+    };
+
+    if !path.exists() {
+        return false;
+    }
+
+    let Ok(content) = fs::read_to_string(&path) else {
+        return false;
+    };
+
+    let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) else {
+        return false;
+    };
+
+    json["hooks"]["beforeShellExecution"]
+        .as_array()
+        .map(|hooks| {
+            hooks.iter().any(|h| {
+                h["command"]
+                    .as_str()
+                    .map(|c| c.contains("veto gate"))
+                    .unwrap_or(false)
+            })
+        })
+        .unwrap_or(false)
+}
+
 /// Setup Claude Code hooks integration
 pub fn run_setup_claude(uninstall: bool) -> Result<(), Box<dyn std::error::Error>> {
     let settings_path = get_claude_settings_path()
@@ -130,6 +166,29 @@ pub fn run_setup_gemini(uninstall: bool) -> Result<(), Box<dyn std::error::Error
         println!("  {} Added veto hooks to BeforeTool", "✓".green());
         println!();
         println!("Done! Restart Gemini CLI for changes to take effect.");
+    }
+
+    Ok(())
+}
+
+/// Setup Cursor CLI hooks integration
+pub fn run_setup_cursor(uninstall: bool) -> Result<(), Box<dyn std::error::Error>> {
+    let hooks_path = get_cursor_hooks_path()
+        .ok_or("Cannot find home directory")?;
+
+    println!("{}", "Setting up Cursor CLI integration...".bold());
+    println!();
+
+    if uninstall {
+        remove_cursor_hooks(&hooks_path)?;
+        println!("  {} Removed veto hook from Cursor CLI", "✓".green());
+        println!();
+        println!("Restart Cursor CLI for changes to take effect.");
+    } else {
+        add_cursor_hooks(&hooks_path)?;
+        println!("  {} Added veto hook to beforeShellExecution", "✓".green());
+        println!();
+        println!("Done! Restart Cursor CLI for changes to take effect.");
     }
 
     Ok(())
@@ -267,6 +326,61 @@ fn add_gemini_hooks(settings_path: &PathBuf) -> Result<(), Box<dyn std::error::E
     Ok(())
 }
 
+/// Add veto hooks to Cursor CLI hooks.json
+fn add_cursor_hooks(hooks_path: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
+    // Read existing hooks or create new
+    let mut settings: serde_json::Value = if hooks_path.exists() {
+        let content = fs::read_to_string(hooks_path)?;
+        serde_json::from_str(&content)?
+    } else {
+        if let Some(parent) = hooks_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        serde_json::json!({})
+    };
+
+    // Ensure version exists
+    if settings.get("version").is_none() {
+        settings["version"] = serde_json::json!(1);
+    }
+
+    // Ensure hooks object exists
+    if settings.get("hooks").is_none() {
+        settings["hooks"] = serde_json::json!({});
+    }
+
+    let veto_hook = serde_json::json!({
+        "command": "veto gate --cursor"
+    });
+
+    let before_shell = settings["hooks"]
+        .get_mut("beforeShellExecution")
+        .and_then(|v| v.as_array_mut());
+
+    if let Some(hooks) = before_shell {
+        let already_exists = hooks.iter().any(|h| {
+            h["command"]
+                .as_str()
+                .map(|c| c.contains("veto gate"))
+                .unwrap_or(false)
+        });
+
+        if already_exists {
+            println!("  {} veto hook already configured", "○".yellow());
+            return Ok(());
+        }
+
+        hooks.push(veto_hook);
+    } else {
+        settings["hooks"]["beforeShellExecution"] = serde_json::json!([veto_hook]);
+    }
+
+    let content = serde_json::to_string_pretty(&settings)?;
+    fs::write(hooks_path, content)?;
+
+    Ok(())
+}
+
 /// Remove veto hooks from Claude Code settings
 fn remove_veto_hooks(settings_path: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
     if !settings_path.exists() {
@@ -363,6 +477,45 @@ fn remove_gemini_hooks(settings_path: &PathBuf) -> Result<(), Box<dyn std::error
     // Write settings back
     let content = serde_json::to_string_pretty(&settings)?;
     fs::write(settings_path, content)?;
+
+    Ok(())
+}
+
+/// Remove veto hooks from Cursor CLI hooks.json
+fn remove_cursor_hooks(hooks_path: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
+    if !hooks_path.exists() {
+        println!("  {} No Cursor CLI hooks found", "○".yellow());
+        return Ok(());
+    }
+
+    let content = fs::read_to_string(hooks_path)?;
+    let mut settings: serde_json::Value = serde_json::from_str(&content)?;
+
+    if let Some(hooks) = settings["hooks"]["beforeShellExecution"].as_array_mut() {
+        hooks.retain(|h| {
+            !h["command"]
+                .as_str()
+                .map(|c| c.contains("veto gate"))
+                .unwrap_or(false)
+        });
+
+        if hooks.is_empty() {
+            if let Some(hooks_obj) = settings["hooks"].as_object_mut() {
+                hooks_obj.remove("beforeShellExecution");
+            }
+        }
+    }
+
+    if let Some(hooks_obj) = settings["hooks"].as_object() {
+        if hooks_obj.is_empty() {
+            if let Some(root) = settings.as_object_mut() {
+                root.remove("hooks");
+            }
+        }
+    }
+
+    let content = serde_json::to_string_pretty(&settings)?;
+    fs::write(hooks_path, content)?;
 
     Ok(())
 }
