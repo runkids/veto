@@ -9,18 +9,19 @@ mod audit;
 use clap::Parser;
 use colored::Colorize;
 use cli::{Cli, Commands, SetupCommands};
-use config::{loader::load_config, Config};
-use rules::{RulesEngine, RiskLevel, default_rules};
+use config::{loader::{load_config, load_rules}, Config};
+use rules::{RulesEngine, RiskLevel};
 use auth::{
     Authenticator, AuthManager, ConfirmAuth, PinAuth, TotpAuth, TouchIdAuth, TelegramAuth, DialogAuth,
     manager::AsyncAuthBridge,
+    Challenge, notify_challenge, verify_response,
 };
 use executor::ShellExecutor;
 use commands::{run_init, run_doctor, run_auth_command, run_shell, run_setup_claude, run_setup_opencode, run_upgrade, run_log};
 
 fn main() {
     let cli = Cli::parse();
-    let engine = RulesEngine::new(default_rules());
+    let engine = RulesEngine::new(load_rules());
 
     match cli.command {
         Commands::Check { command } => {
@@ -266,10 +267,30 @@ fn run_gate(
         .or_else(|| cmd_env_vars.get("VETO_TOTP").cloned());
     let env_confirm = std::env::var("VETO_CONFIRM").ok()
         .or_else(|| cmd_env_vars.get("VETO_CONFIRM").cloned());
+    // VETO_RESPONSE for challenge-response authentication (PIN+challenge or just challenge)
+    let env_response = std::env::var("VETO_RESPONSE").ok()
+        .or_else(|| cmd_env_vars.get("VETO_RESPONSE").cloned());
 
     let effective_pin = pin_code.or(env_pin);
     let effective_totp = totp_code.or(env_totp);
     let has_credentials = effective_totp.is_some() || effective_pin.is_some() || env_confirm.is_some();
+    let has_response = env_response.is_some();
+
+    // Check if this rule requires challenge-response authentication
+    let requires_challenge = result.challenge && (claude_mode || opencode_mode);
+
+    // Handle challenge-response verification if VETO_RESPONSE is provided
+    if requires_challenge && has_response {
+        if let Some(response) = &env_response {
+            let verify_result = verify_response(response, eval_command, primary_method);
+            if verify_result.success {
+                output_allowed(eval_command, &result.level, &verify_result.method, claude_mode);
+            } else {
+                let error_msg = verify_result.error.unwrap_or_else(|| "Challenge verification failed".to_string());
+                output_blocked(eval_command, &result.level, &error_msg, claude_mode);
+            }
+        }
+    }
 
     if !has_credentials {
         // No credentials - behavior depends on auth method
@@ -308,8 +329,25 @@ fn run_gate(
                 }
                 // PIN configured - ask for code
                 if claude_mode || opencode_mode {
-                    eprintln!("[veto] {} command blocked. Ask user in chat for their PIN code. If provided, retry command with VETO_PIN=<code> prefix.", risk_level_str(&result.level));
-                    std::process::exit(2);
+                    if requires_challenge {
+                        // Generate challenge and send notification
+                        match Challenge::generate(eval_command) {
+                            Ok(challenge) => {
+                                if let Err(e) = notify_challenge(&challenge, eval_command) {
+                                    eprintln!("[veto] Warning: Failed to send notification: {}", e);
+                                }
+                                eprintln!("[veto] {} command blocked (challenge required). Challenge code sent via notification. Ask user to check notification and combine PIN + challenge code (format: PIN followed by challenge). Retry with VETO_RESPONSE=<PIN><challenge> prefix.", risk_level_str(&result.level));
+                                std::process::exit(2);
+                            }
+                            Err(e) => {
+                                eprintln!("[veto] Failed to generate challenge: {}", e);
+                                std::process::exit(2);
+                            }
+                        }
+                    } else {
+                        eprintln!("[veto] {} command blocked. Ask user in chat for their PIN code. If provided, retry command with VETO_PIN=<code> prefix.", risk_level_str(&result.level));
+                        std::process::exit(2);
+                    }
                 } else {
                     eprintln!("{}", "⚠️  AUTH_REQUIRED".red().bold());
                     eprintln!("risk_level: {}", risk_level_str(&result.level));
@@ -407,9 +445,26 @@ fn run_gate(
                 }
 
                 if opencode_mode || claude_mode {
-                    // AI mode: tell AI how to retry with user confirmation
-                    eprintln!("[veto] {} command blocked. Ask user in chat: \"Do you want to allow `{}`?\" If YES, retry command with VETO_CONFIRM=yes prefix.", risk_level_str(&result.level), eval_command);
-                    std::process::exit(2);
+                    if requires_challenge {
+                        // Generate challenge and send notification
+                        match Challenge::generate(eval_command) {
+                            Ok(challenge) => {
+                                if let Err(e) = notify_challenge(&challenge, eval_command) {
+                                    eprintln!("[veto] Warning: Failed to send notification: {}", e);
+                                }
+                                eprintln!("[veto] {} command blocked (challenge required). Challenge code sent via notification. Ask user to check notification and enter the 4-digit challenge code. Retry with VETO_RESPONSE=<challenge> prefix.", risk_level_str(&result.level));
+                                std::process::exit(2);
+                            }
+                            Err(e) => {
+                                eprintln!("[veto] Failed to generate challenge: {}", e);
+                                std::process::exit(2);
+                            }
+                        }
+                    } else {
+                        // AI mode: tell AI how to retry with user confirmation
+                        eprintln!("[veto] {} command blocked. Ask user in chat: \"Do you want to allow `{}`?\" If YES, retry command with VETO_CONFIRM=yes prefix.", risk_level_str(&result.level), eval_command);
+                        std::process::exit(2);
+                    }
                 } else {
                     // Terminal mode: interactive confirmation
                     let auth = ConfirmAuth::new();

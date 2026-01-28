@@ -18,6 +18,7 @@ impl RulesEngine {
                 category: Some("whitelist".to_string()),
                 reason: Some("Command is whitelisted".to_string()),
                 matched_pattern: None,
+                challenge: false,
             };
         }
 
@@ -41,6 +42,7 @@ impl RulesEngine {
             category: None,
             reason: Some("No matching rules".to_string()),
             matched_pattern: None,
+            challenge: false,
         }
     }
 
@@ -62,6 +64,7 @@ impl RulesEngine {
                         category: Some(rule.category.clone()),
                         reason: rule.reason.clone(),
                         matched_pattern: Some(pattern.clone()),
+                        challenge: rule.challenge.unwrap_or(false),
                     });
                 }
             }
@@ -96,6 +99,7 @@ mod tests {
                     patterns: vec!["rm -rf /".to_string(), "rm -rf ~".to_string()],
                     paths: vec![],
                     reason: Some("Destructive command".to_string()),
+                    challenge: Some(true),
                 },
             ],
             high: vec![
@@ -104,6 +108,7 @@ mod tests {
                     patterns: vec!["cat *.env*".to_string()],
                     paths: vec![],
                     reason: Some("Secrets access".to_string()),
+                    challenge: None,
                 },
             ],
             medium: vec![
@@ -112,6 +117,7 @@ mod tests {
                     patterns: vec!["git push*".to_string()],
                     paths: vec![],
                     reason: None,
+                    challenge: None,
                 },
             ],
             low: vec![],
@@ -149,5 +155,17 @@ mod tests {
         let engine = RulesEngine::new(create_test_rules());
         let result = engine.evaluate("cargo build");
         assert_eq!(result.level, RiskLevel::Allow);
+    }
+
+    #[test]
+    fn test_challenge_field_propagation() {
+        let engine = RulesEngine::new(create_test_rules());
+        // Critical rule has challenge = true
+        let result = engine.evaluate("rm -rf /");
+        assert!(result.challenge, "Critical rule should have challenge=true");
+
+        // High rule has challenge = None (defaults to false)
+        let result = engine.evaluate("cat .env");
+        assert!(!result.challenge, "High rule without challenge should default to false");
     }
 }

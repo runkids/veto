@@ -166,6 +166,7 @@ Add your own rules in `~/.veto/rules.toml`:
 category = "secrets"
 patterns = ["cat *.env*", "cat ~/.ssh/id_*"]
 reason = "Sensitive file access"
+challenge = true    # Require challenge code (prevents AI replay)
 
 [whitelist]
 commands = ["git status*", "docker ps*"]
@@ -187,6 +188,7 @@ Full rules syntax: [Rules](docs/rules.md).
 ## Authentication Methods
 
 - 🔐 PIN, 🔑 TOTP, 📱 Telegram, 👆 Touch ID (macOS), 💬 confirm
+- 🎯 **Challenge-Response** — Prevent AI from reusing credentials (via notification)
 - Setup: [Authentication](docs/authentication.md)
 
 ---

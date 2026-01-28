@@ -6,6 +6,7 @@
 //! - totp: Time-based OTP (Google Authenticator compatible)
 //! - touchid: macOS Touch ID (platform-specific)
 //! - telegram: Async Telegram bot approval
+//! - challenge: Challenge-response for preventing AI replay attacks
 
 mod confirm;
 mod pin;
@@ -13,6 +14,7 @@ mod totp;
 mod touchid;
 mod telegram;
 mod dialog;
+pub mod challenge;
 pub mod keyring;
 pub mod manager;
 
@@ -23,6 +25,7 @@ pub use touchid::*;
 pub use telegram::*;
 pub use dialog::*;
 pub use manager::{AuthManager, AuthenticatorFactory};
+pub use challenge::{Challenge, notify_challenge, verify_response};
 
 use thiserror::Error;
 

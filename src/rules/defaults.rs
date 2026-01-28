@@ -16,6 +16,7 @@ pub fn default_rules() -> Rules {
                 ],
                 paths: vec![],
                 reason: Some("Potentially destructive system command".to_string()),
+                challenge: None,
             },
             Rule {
                 category: "credentials".to_string(),
@@ -27,6 +28,7 @@ pub fn default_rules() -> Rules {
                 ],
                 paths: vec![],
                 reason: Some("Credential exposure risk".to_string()),
+                challenge: None,
             },
         ],
         high: vec![
@@ -40,6 +42,7 @@ pub fn default_rules() -> Rules {
                 ],
                 paths: vec![],
                 reason: Some("Recursive force delete".to_string()),
+                challenge: None,
             },
             Rule {
                 category: "secrets".to_string(),
@@ -51,6 +54,7 @@ pub fn default_rules() -> Rules {
                 ],
                 paths: vec![],
                 reason: Some("Secrets file access".to_string()),
+                challenge: None,
             },
             Rule {
                 category: "git-destructive".to_string(),
@@ -62,6 +66,7 @@ pub fn default_rules() -> Rules {
                 ],
                 paths: vec![],
                 reason: Some("Destructive git operation".to_string()),
+                challenge: None,
             },
         ],
         medium: vec![
@@ -75,6 +80,7 @@ pub fn default_rules() -> Rules {
                 ],
                 paths: vec![],
                 reason: Some("Recursive delete".to_string()),
+                challenge: None,
             },
             Rule {
                 category: "git".to_string(),
@@ -85,6 +91,7 @@ pub fn default_rules() -> Rules {
                 ],
                 paths: vec![],
                 reason: Some("Git operation that modifies remote".to_string()),
+                challenge: None,
             },
             Rule {
                 category: "install".to_string(),
@@ -98,6 +105,7 @@ pub fn default_rules() -> Rules {
                 ],
                 paths: vec![],
                 reason: Some("Package installation".to_string()),
+                challenge: None,
             },
         ],
         low: vec![
@@ -108,6 +116,7 @@ pub fn default_rules() -> Rules {
                 ],
                 paths: vec![],
                 reason: Some("File deletion".to_string()),
+                challenge: None,
             },
             Rule {
                 category: "network".to_string(),
@@ -117,6 +126,7 @@ pub fn default_rules() -> Rules {
                 ],
                 paths: vec![],
                 reason: Some("Network request".to_string()),
+                challenge: None,
             },
         ],
         whitelist: Whitelist {

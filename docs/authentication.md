@@ -201,6 +201,47 @@ veto doctor
 #   Keyring test: ✓ (write/read OK)
 ```
 
+## Challenge-Response Authentication
+
+For rules with `challenge = true`, veto adds an extra layer of security to prevent AI agents from reusing credentials.
+
+### How It Works
+
+1. When a command triggers a rule with `challenge = true`, veto generates a **4-digit challenge code**
+2. The code is sent via notification (macOS) or Telegram (if configured)
+3. The AI cannot see the code — it must ask the user
+4. User provides the code, and AI retries with `VETO_RESPONSE`
+
+### Response Format
+
+| Auth Method | Format | Example |
+|-------------|--------|---------|
+| PIN | `VETO_RESPONSE=<PIN><challenge>` | `VETO_RESPONSE=12344827` |
+| confirm | `VETO_RESPONSE=<challenge>` | `VETO_RESPONSE=4827` |
+| TOTP | No challenge needed | `VETO_TOTP=123456` |
+
+### Platform Support
+
+| Platform | Notification Method |
+|----------|---------------------|
+| macOS | Native notification (osascript) + sound |
+| Linux | `notify-send` (libnotify) or Telegram |
+
+**Linux Requirements:**
+- Install `libnotify`: `apt install libnotify-bin` (Debian/Ubuntu) or `dnf install libnotify` (Fedora)
+- Or configure Telegram as fallback
+
+### Challenge Properties
+
+- **4 digits** — Easy to communicate verbally
+- **60 second expiry** — Prevents delayed replay
+- **Single use** — Cannot reuse same code
+- **Command-bound** — Code only works for specific command
+
+See [Rules](rules.md) for configuring `challenge = true` on rules.
+
+---
+
 ## Managing Authentication
 
 ### Remove a Method

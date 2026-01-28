@@ -185,6 +185,107 @@ patterns = [
 reason = "Remote connection"
 ```
 
+## Challenge-Response Authentication
+
+For high-security rules, you can enable challenge-response authentication to prevent AI agents from reusing credentials:
+
+```toml
+[[critical]]
+category = "destructive"
+patterns = ["rm -rf *"]
+reason = "Recursive force delete"
+challenge = true    # Enable challenge-response
+```
+
+When `challenge = true`:
+
+1. veto generates a **4-digit challenge code** and sends it via:
+   - macOS notification (always)
+   - Telegram (if configured)
+
+2. The AI cannot see the code — only the user can
+
+3. User must provide the challenge code:
+   - **PIN auth**: `VETO_RESPONSE=<PIN><challenge>` (e.g., `12344827`)
+   - **confirm auth**: `VETO_RESPONSE=<challenge>` (e.g., `4827`)
+   - **TOTP auth**: No challenge needed (TOTP already has 30-second expiry)
+
+### Challenge Security
+
+| Property | Value |
+|----------|-------|
+| Code length | 4 digits |
+| Expiry | 60 seconds |
+| Usage | Single-use |
+| Binding | Tied to specific command |
+
+### Challenge Flow
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                      Challenge-Response Authentication                       │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+  Step 1: AI tries command (rule has challenge = true)
+  ────────────────────────────────────────────────────
+
+  ┌─────────────┐        ┌─────────────────┐        ┌─────────────────────────┐
+  │ Claude Code │───────▶│  veto gate      │───────▶│ Generate challenge 4827 │
+  │   (AI)      │        │  --claude       │        │ Send via notification   │
+  └─────────────┘        └─────────────────┘        └─────────────────────────┘
+                                                              │
+                                    ┌─────────────────────────┴─────────────┐
+                                    │                                       │
+                                    ▼                                       ▼
+                          ┌──────────────────┐                 ┌────────────────────┐
+                          │ macOS: Native    │                 │ Telegram: Message  │
+                          │ notification     │                 │ (if configured)    │
+                          │ "Challenge: 4827"│                 │ "Code: 4827"       │
+                          └──────────────────┘                 └────────────────────┘
+                                    │
+                                    ▼
+                          ┌──────────────────────────────────────┐
+                          │ AI output: "Ask user for challenge"  │
+                          │ exit 2                               │
+                          └──────────────────────────────────────┘
+
+  Step 2: User sees notification, provides code to AI
+  ───────────────────────────────────────────────────
+
+  ┌─────────────┐        ┌─────────────────────────────────────────────────────┐
+  │    User     │───────▶│ "The challenge code is 4827"                        │
+  │             │        │ (or for PIN: "Use 12344827" = PIN 1234 + code 4827) │
+  └─────────────┘        └─────────────────────────────────────────────────────┘
+
+  Step 3: AI retries with VETO_RESPONSE
+  ─────────────────────────────────────
+
+  ┌─────────────┐        ┌─────────────────┐        ┌─────────────────────────┐
+  │ Claude Code │───────▶│ VETO_RESPONSE=  │───────▶│ Verify challenge        │
+  │   (AI)      │        │ 12344827        │        │ - Code exists? ✓        │
+  └─────────────┘        │ veto gate ...   │        │ - Not expired? ✓        │
+                         └─────────────────┘        │ - Not used?   ✓         │
+                                                    │ - Correct PIN? ✓        │
+                                                    └────────────┬────────────┘
+                                                                 │
+                                                   ┌─────────────┴─────────────┐
+                                                   │                           │
+                                                   ▼                           ▼
+                                            ┌────────────┐              ┌─────────────────┐
+                                            │  All OK    │              │  Failed         │
+                                            │            │              │                 │
+                                            └─────┬──────┘              └─────┬───────────┘
+                                                  │                           │
+                                                  ▼                           ▼
+                                            ┌────────────┐              ┌─────────────────┐
+                                            │  exit 0    │              │ JSON output     │
+                                            │  Command   │              │ continue: false │
+                                            │  Executes  │              │ AI stops        │
+                                            └────────────┘              └─────────────────┘
+```
+
+---
+
 ## Rule Pattern Syntax
 
 | Pattern | Matches |

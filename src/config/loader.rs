@@ -2,6 +2,7 @@ use std::path::PathBuf;
 use thiserror::Error;
 
 use super::Config;
+use crate::rules::{Rules, default_rules};
 
 #[derive(Error, Debug)]
 pub enum ConfigError {
@@ -34,6 +35,42 @@ pub fn load_config() -> Result<Config, ConfigError> {
     let content = std::fs::read_to_string(&config_path)?;
     let config: Config = toml::from_str(&content)?;
     Ok(config)
+}
+
+/// Load rules from ~/.veto/rules.toml and merge with defaults
+/// User rules take priority (checked first)
+pub fn load_rules() -> Rules {
+    let rules_path = get_config_dir().join("rules.toml");
+    let defaults = default_rules();
+
+    if !rules_path.exists() {
+        return defaults;
+    }
+
+    let content = match std::fs::read_to_string(&rules_path) {
+        Ok(c) => c,
+        Err(_) => return defaults,
+    };
+
+    let user_rules: Rules = match toml::from_str(&content) {
+        Ok(r) => r,
+        Err(e) => {
+            eprintln!("[veto] Warning: Failed to parse rules.toml: {}", e);
+            return defaults;
+        }
+    };
+
+    // Merge: user rules first (higher priority), then defaults
+    Rules {
+        critical: [user_rules.critical, defaults.critical].concat(),
+        high: [user_rules.high, defaults.high].concat(),
+        medium: [user_rules.medium, defaults.medium].concat(),
+        low: [user_rules.low, defaults.low].concat(),
+        whitelist: crate::rules::Whitelist {
+            commands: [user_rules.whitelist.commands, defaults.whitelist.commands].concat(),
+            paths: [user_rules.whitelist.paths, defaults.whitelist.paths].concat(),
+        },
+    }
 }
 
 /// Update Telegram configuration in config.toml

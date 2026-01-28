@@ -30,6 +30,10 @@ pub struct Rule {
     #[serde(default)]
     pub paths: Vec<String>,
     pub reason: Option<String>,
+    /// Enable challenge-response mechanism for this rule
+    /// When true, requires challenge code sent via notification
+    #[serde(default)]
+    pub challenge: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -60,4 +64,6 @@ pub struct RiskResult {
     pub category: Option<String>,
     pub reason: Option<String>,
     pub matched_pattern: Option<String>,
+    /// Whether this rule requires challenge-response authentication
+    pub challenge: bool,
 }
