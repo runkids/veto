@@ -16,7 +16,7 @@ use auth::{
     manager::AsyncAuthBridge,
 };
 use executor::ShellExecutor;
-use commands::{run_init, run_doctor, run_auth_command, run_shell, run_setup_claude, run_upgrade};
+use commands::{run_init, run_doctor, run_auth_command, run_shell, run_setup_claude, run_upgrade, run_log};
 
 fn main() {
     let cli = Cli::parse();
@@ -82,6 +82,12 @@ fn main() {
         }
         Commands::Upgrade { check, force } => {
             if let Err(e) = run_upgrade(check, force) {
+                eprintln!("{} {}", "Error:".red(), e);
+                std::process::exit(1);
+            }
+        }
+        Commands::Log(args) => {
+            if let Err(e) = run_log(args) {
                 eprintln!("{} {}", "Error:".red(), e);
                 std::process::exit(1);
             }

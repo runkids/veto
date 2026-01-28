@@ -11,6 +11,7 @@
 | `veto init` | Create default config |
 | `veto doctor` | Diagnose installation |
 | `veto upgrade` | Self-update to latest version |
+| `veto log` | View audit log |
 
 ## Setup Commands
 
@@ -42,6 +43,10 @@
 | `--pin <code>` | Pass PIN directly (gate only) |
 | `--check` | Only check for updates (upgrade only) |
 | `--force` | Force reinstall even if latest (upgrade only) |
+| `-n, --tail <N>` | Show last N entries (log only) |
+| `-f, --follow` | Follow log in real-time (log only) |
+| `--filter <R>` | Filter by ALLOWED/DENIED/BLOCKED (log only) |
+| `--clear` | Clear the audit log (log only) |
 
 ## Exit Codes
 
@@ -128,4 +133,37 @@ veto upgrade
 
 # Force reinstall (even if already latest)
 veto upgrade --force
+```
+
+### Audit Log
+
+```bash
+# Show all log entries
+veto log
+
+# Show last 5 entries
+veto log -n 5
+
+# Filter by result type
+veto log --filter ALLOWED
+veto log --filter DENIED
+veto log --filter BLOCKED
+
+# Combine filter and tail
+veto log --filter DENIED -n 10
+
+# Follow log in real-time (like tail -f)
+veto log -f
+veto log -f --filter DENIED
+
+# Clear log with confirmation
+veto log --clear
+# Warning: 42 entries will be deleted. Continue? [y/N]
+```
+
+Log format:
+```
+[timestamp] RESULT RISK auth_method "command"
+[2026-01-28 10:04:42] ALLOWED HIGH PIN "rm -rf video/out/"
+[2026-01-28 03:31:39] DENIED LOW - "rm video/out/test.gif"
 ```

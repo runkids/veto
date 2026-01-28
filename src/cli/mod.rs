@@ -65,6 +65,27 @@ pub enum Commands {
         #[arg(long)]
         force: bool,
     },
+    /// View audit log
+    Log(LogArgs),
+}
+
+#[derive(Args)]
+pub struct LogArgs {
+    /// Show last N entries
+    #[arg(short = 'n', long)]
+    pub tail: Option<usize>,
+
+    /// Follow log in real-time
+    #[arg(short, long)]
+    pub follow: bool,
+
+    /// Filter by result: ALLOWED, DENIED, or BLOCKED
+    #[arg(long)]
+    pub filter: Option<String>,
+
+    /// Clear the audit log
+    #[arg(long)]
+    pub clear: bool,
 }
 
 #[derive(Args)]

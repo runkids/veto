@@ -1,17 +1,17 @@
 <p align="center">
   <h1 align="center">veto</h1>
-  <p align="center">✋ AI operation guardian — Intercept dangerous commands before AI executes them</p>
+  <p align="center">✋ AI operation guardian — intercept dangerous commands before AI executes them</p>
 </p>
 
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
   <a href="https://www.rust-lang.org/"><img src="https://img.shields.io/badge/rust-1.85+-orange.svg" alt="Rust"></a>
-  <a href="#supported-platforms"><img src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux-lightgrey.svg" alt="Platform"></a>
+  <a href="#platforms"><img src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux-lightgrey.svg" alt="Platform"></a>
 </p>
 
 <p align="center">
-  <strong>Intercept dangerous commands before AI executes them.</strong><br>
-  Risk evaluation + multi-factor authentication for Claude Code.
+  <strong>Risk evaluation + authentication gate for shell commands.</strong><br>
+  Built for Claude Code hooks, also usable as a CLI.
 </p>
 
 <p align="center">
@@ -22,16 +22,113 @@
 
 ## Why veto?
 
-AI coding assistants execute shell commands autonomously. **veto adds a safety layer.**
+AI coding assistants can execute shell commands autonomously. **veto adds a risk-based gate**:
 
-| | Without veto | With veto |
-|---|-------------|-----------|
-| `rm -rf /` | Executes immediately | **CRITICAL** — requires strong auth |
-| `git push --force` | Silent execution | **HIGH** — warns, requires approval |
-| `cat .env` | Secrets exposed | **HIGH** — flags sensitive file access |
-| `npm install` | Runs without notice | **MEDIUM** — logged, confirmation |
-| Audit trail | None | **Every command logged** with risk level |
-| Custom rules | — | **Define your own** patterns and risk levels |
+- Evaluate risk level (`ALLOW` → `CRITICAL`) using built-in + custom rules
+- For higher risk, require authentication (Touch ID / PIN / TOTP / Telegram / confirm)
+- Keep an audit trail of evaluations
+
+---
+
+## Quick Start
+
+Install:
+
+```bash
+curl -sSL https://raw.githubusercontent.com/runkids/veto/main/install.sh | bash
+```
+
+Enable Claude Code hooks:
+
+```bash
+veto init
+veto setup claude
+veto doctor
+```
+
+Restart Claude Code. High-risk commands will now require verification.
+
+---
+
+## Examples
+
+Claude Code hook (simulate stdin JSON):
+
+```bash
+echo '{"tool_input":{"command":"ls -la"}}' | veto gate --claude
+# ALLOW commands should exit 0 (often with no output)
+```
+
+Direct CLI risk check:
+
+```bash
+veto check -v "git push -f origin main"
+# Risk: HIGH
+# Category/Reason/Pattern shown in verbose mode
+```
+
+---
+
+## Install / Upgrade / Uninstall
+
+Install (script downloads the correct binary):
+
+```bash
+curl -sSL https://raw.githubusercontent.com/runkids/veto/main/install.sh | bash
+```
+
+Enable Claude Code hooks (optional):
+
+```bash
+veto init
+veto setup claude
+```
+
+Upgrade:
+
+```bash
+veto upgrade --check
+veto upgrade
+```
+
+If your Claude Code hooks ever go missing (or you want to reinstall them):
+
+```bash
+veto setup claude
+```
+
+Uninstall:
+
+```bash
+curl -sSL https://raw.githubusercontent.com/runkids/veto/main/uninstall.sh | bash
+```
+
+Remove Claude Code hooks only:
+
+```bash
+veto setup claude --uninstall
+```
+
+Full details: [Installation](docs/installation.md) and [Claude Code integration](docs/claude-code.md).
+
+---
+
+## Security Model (Threat Model Boundaries)
+
+What veto helps with:
+
+- Accidental destructive commands (e.g. recursive deletes, force pushes)
+- Automation running higher-risk commands without explicit approval
+- Visibility: an audit trail of command evaluations
+
+What veto does NOT protect against:
+
+- Bypass: running commands outside `veto` / without Claude Code hooks enabled
+- A compromised host (malware, root compromise) or a compromised user account
+- Malicious-but-benign-looking commands that don't match your rules
+- "Approved but harmful": once you approve, veto will allow the command
+
+Audit log privacy note: the audit log records command strings. Treat it as sensitive if your commands include secrets.
 
 ---
 
@@ -40,34 +137,20 @@ AI coding assistants execute shell commands autonomously. **veto adds a safety l
 Add your own rules in `~/.veto/rules.toml`:
 
 ```toml
-# Protect sensitive files from being read
 [[critical]]
 category = "secrets"
-patterns = [
-    "cat *.env*",
-    "cat *secret*",
-    "cat *password*",
-    "cat ~/.ssh/id_*",
-    "cat *credentials*",
-]
+patterns = ["cat *.env*", "cat ~/.ssh/id_*"]
 reason = "Sensitive file access"
 
-# Block destructive database operations
-[[critical]]
-category = "database-destructive"
-patterns = ["DROP DATABASE*", "DROP TABLE*", "TRUNCATE*"]
-reason = "Destructive database operation"
-
-# Whitelist safe commands
 [whitelist]
-commands = ["docker ps*", "kubectl get pods*", "git status*"]
+commands = ["git status*", "docker ps*"]
 ```
 
-[→ Full rules documentation](docs/rules.md)
+Full rules syntax: [Rules](docs/rules.md).
 
 ---
 
-## Supported Platforms
+## Platforms
 
 | OS | Architecture | Touch ID |
 |----|--------------|----------|
@@ -76,87 +159,47 @@ commands = ["docker ps*", "kubectl get pods*", "git status*"]
 
 ---
 
-## Supported AI Tools
-
-| Tool | Status |
-|------|--------|
-| [Claude Code](https://claude.ai/code) | ✅ Supported |
-| [Moltbot](https://clawd.bot/) | 🔜 Coming soon |
-
----
-
 ## Authentication Methods
 
-| Method | Platform | Description |
-|--------|----------|-------------|
-| 🔐 [**PIN**](docs/authentication.md#pin) | All | 4+ digit code, Argon2 hashed |
-| 📱 [**Telegram**](docs/authentication.md#telegram) | All | Remote approval via bot |
-| 🔑 [**TOTP**](docs/authentication.md#totp-google-authenticator) | All | Google Authenticator compatible |
-| 👆 [**Touch ID**](docs/authentication.md#touch-id-macos) | macOS | Biometric authentication |
-| 💬 **Confirm** | All | Simple y/n prompt |
-
-[→ Setup guide](docs/authentication.md)
+- 🔐 PIN, 🔑 TOTP, 📱 Telegram, 👆 Touch ID (macOS), 💬 confirm
+- Setup: [Authentication](docs/authentication.md)
 
 ---
 
-## Installation
+## Audit Log
+
+Every evaluation is logged to `~/.veto/audit.log`.
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/runkids/veto/main/install.sh | bash
-```
-
----
-
-## Quick Start
-
-```bash
-veto init              # Create config in ~/.veto/
-veto setup claude      # Setup Claude Code hooks
-veto doctor            # Verify setup
-```
-
-Done! Restart Claude Code. High-risk commands now require Touch ID or authentication.
-
----
-
-## How It Works
-
-```
-┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│   AI Assistant  │────▶│      veto       │────▶│      Shell      │
-│  (Claude Code)  │     │                 │     │    (bash/zsh)   │
-└─────────────────┘     │  1. Parse cmd   │     └─────────────────┘
-                        │  2. Match rules │
-                        │  3. Eval risk   │
-                        │  4. Require auth│
-                        │  5. Execute     │
-                        └─────────────────┘
+veto log
+veto log -n 10
+veto log --filter DENIED
+veto log -f
+veto log --clear
 ```
 
 ---
 
 ## Documentation
 
-| Document | Description |
-|----------|-------------|
-| [Installation](docs/installation.md) | Install guide, build from source |
-| [Commands](docs/commands.md) | Full command reference, flags, exit codes |
-| [Configuration](docs/configuration.md) | config.toml options |
-| [Rules](docs/rules.md) | Default rules, custom rules syntax |
-| [Authentication](docs/authentication.md) | Setup PIN, TOTP, Touch ID, Telegram |
-| [Claude Code](docs/claude-code.md) | Claude Code integration, hooks, flow diagram |
-| [Troubleshooting](docs/troubleshooting.md) | Common issues, FAQ |
+- [Installation](docs/installation.md)
+- [Commands](docs/commands.md)
+- [Configuration](docs/configuration.md)
+- [Rules](docs/rules.md)
+- [Authentication](docs/authentication.md)
+- [Claude Code](docs/claude-code.md)
+- [Troubleshooting](docs/troubleshooting.md)
 
 ---
 
 ## Development
 
 ```bash
-make build      # Build debug
-make test       # Run tests
-make release    # Build release
-make install    # Install to /usr/local/bin
-make sandbox    # Docker sandbox for testing
+make build
+make test
+make release
+make install
+make sandbox
 ```
 
 ---

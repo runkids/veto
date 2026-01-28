@@ -18,6 +18,7 @@ coverage.out
 AGENTS.md
 CLAUDE.md
 docs/plans/
+.sisyphus/
 
 # Worktrees
 .worktrees/

@@ -73,3 +73,22 @@ fn log_audit_internal(entry: &AuditEntry) -> Result<(), Box<dyn std::error::Erro
 pub fn get_audit_log_path() -> std::path::PathBuf {
     get_config_dir().join("audit.log")
 }
+
+/// Read all lines from the audit log
+pub fn read_audit_log() -> Result<Vec<String>, Box<dyn std::error::Error>> {
+    let log_path = get_audit_log_path();
+    if !log_path.exists() {
+        return Ok(vec![]);
+    }
+    let content = std::fs::read_to_string(&log_path)?;
+    Ok(content.lines().map(String::from).collect())
+}
+
+/// Clear the audit log
+pub fn clear_audit_log() -> Result<(), Box<dyn std::error::Error>> {
+    let log_path = get_audit_log_path();
+    if log_path.exists() {
+        std::fs::remove_file(&log_path)?;
+    }
+    Ok(())
+}
