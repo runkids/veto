@@ -90,15 +90,19 @@ pub struct LogArgs {
 
 #[derive(Args)]
 pub struct GateArgs {
-    /// Command to verify (optional if using --claude)
+    /// Command to verify (optional if using --claude/--gemini)
     pub command: Option<String>,
 
     /// Read command from Claude Code stdin JSON format
-    #[arg(long, conflicts_with = "command")]
+    #[arg(long, conflicts_with_all = ["command", "opencode", "gemini"])]
     pub claude: bool,
 
+    /// Read command from Gemini CLI stdin JSON format
+    #[arg(long, conflicts_with_all = ["command", "opencode", "claude"])]
+    pub gemini: bool,
+
     /// OpenCode mode - use dialog/touchid auth, don't suggest env var bypass
-    #[arg(long, conflicts_with = "claude")]
+    #[arg(long, conflicts_with_all = ["claude", "gemini"])]
     pub opencode: bool,
 
     /// Override authentication method
@@ -119,6 +123,12 @@ pub enum SetupCommands {
     /// Setup Claude Code hooks integration
     Claude {
         /// Remove veto hooks from Claude Code
+        #[arg(long)]
+        uninstall: bool,
+    },
+    /// Setup Gemini CLI hooks integration
+    Gemini {
+        /// Remove veto hooks from Gemini CLI
         #[arg(long)]
         uninstall: bool,
     },

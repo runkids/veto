@@ -145,9 +145,14 @@ To remove: `veto setup opencode --uninstall`
 
 ## Plugin Location
 
-The plugin is installed at:
+The plugin is installed at the global path:
 ```
 ~/.config/opencode/plugins/veto-gate.js
+```
+
+OpenCode also supports project-level plugins:
+```
+.opencode/plugins/veto-gate.js
 ```
 
 ## Authentication Methods
@@ -160,6 +165,8 @@ The plugin is installed at:
 | `totp` | AI asks user for TOTP, retry with `VETO_TOTP=<code>` |
 | `confirm` | AI asks user, retry with `VETO_CONFIRM=yes` |
 | `telegram` | Telegram bot approval |
+
+If a rule requires a challenge, OpenCode will ask for the challenge code and retry with `VETO_RESPONSE=<code>` (or `VETO_RESPONSE=<PIN><challenge>` for PIN+challenge).
 
 **Recommended for OpenCode:** `dialog` or `touchid` (AI cannot bypass these)
 

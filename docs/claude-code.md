@@ -249,6 +249,7 @@ veto supports multiple AI coding assistants:
 | Tool | Integration | Command |
 |------|-------------|---------|
 | Claude Code | ✅ Supported | `veto setup claude` |
+| Gemini CLI | ✅ Supported | `veto setup gemini` |
 | OpenCode | ✅ Supported | `veto setup opencode` |
 
-See [OpenCode Integration](opencode.md) for OpenCode setup.
+See [Gemini CLI Integration](geminicli.md) and [OpenCode Integration](opencode.md) for setup details.

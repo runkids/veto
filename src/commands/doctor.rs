@@ -1,7 +1,7 @@
 use colored::Colorize;
 
 use crate::auth::keyring::SecureKeyring;
-use crate::commands::is_claude_configured;
+use crate::commands::{is_claude_configured, is_gemini_configured};
 use crate::config::{get_config_dir, load_config};
 
 pub fn run_doctor() {
@@ -127,6 +127,29 @@ pub fn run_doctor() {
                 println!("{} veto hooks configured", "✓".green());
             } else {
                 println!("{} exists but no veto hooks (run `veto setup claude`)", "○".yellow());
+            }
+        }
+        Some(_) => {
+            println!("{} not found (optional)", "○".yellow());
+        }
+        None => {
+            println!("{} cannot determine path", "○".yellow());
+        }
+    }
+
+    // Gemini CLI integration
+    println!();
+    println!("{}", "Gemini CLI Integration:".bold());
+    let gemini_settings = dirs::home_dir()
+        .map(|h| h.join(".gemini").join("settings.json"));
+
+    print!("  settings.json: ");
+    match gemini_settings {
+        Some(path) if path.exists() => {
+            if is_gemini_configured() {
+                println!("{} veto hooks configured", "✓".green());
+            } else {
+                println!("{} exists but no veto hooks (run `veto setup gemini`)", "○".yellow());
             }
         }
         Some(_) => {
