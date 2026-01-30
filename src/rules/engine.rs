@@ -11,6 +11,121 @@ impl RulesEngine {
     }
 
     pub fn evaluate(&self, command: &str) -> RiskResult {
+        // Split compound commands and evaluate each part
+        // Return highest risk level found
+        let subcommands = self.split_compound_command(command);
+
+        let mut highest_result: Option<RiskResult> = None;
+
+        for subcmd in &subcommands {
+            let result = self.evaluate_single(subcmd);
+
+            // Keep track of highest risk level
+            match &highest_result {
+                None => highest_result = Some(result),
+                Some(current) => {
+                    if self.risk_level_priority(&result.level) > self.risk_level_priority(&current.level) {
+                        highest_result = Some(result);
+                    }
+                }
+            }
+        }
+
+        highest_result.unwrap_or(RiskResult {
+            level: RiskLevel::Allow,
+            category: None,
+            reason: Some("No matching rules".to_string()),
+            matched_pattern: None,
+            challenge: false,
+        })
+    }
+
+    /// Split compound commands by &&, ||, ; while respecting quotes
+    fn split_compound_command(&self, command: &str) -> Vec<String> {
+        let mut parts = Vec::new();
+        let mut current = String::new();
+        let mut chars = command.chars().peekable();
+        let mut in_single_quote = false;
+        let mut in_double_quote = false;
+        let mut escape_next = false;
+
+        while let Some(c) = chars.next() {
+            if escape_next {
+                current.push(c);
+                escape_next = false;
+                continue;
+            }
+
+            if c == '\\' {
+                escape_next = true;
+                current.push(c);
+                continue;
+            }
+
+            if c == '\'' && !in_double_quote {
+                in_single_quote = !in_single_quote;
+                current.push(c);
+                continue;
+            }
+
+            if c == '"' && !in_single_quote {
+                in_double_quote = !in_double_quote;
+                current.push(c);
+                continue;
+            }
+
+            // Only split if not inside quotes
+            if !in_single_quote && !in_double_quote {
+                // Check for && or ||
+                if c == '&' || c == '|' {
+                    if chars.peek() == Some(&c) {
+                        chars.next(); // consume second char
+                        let trimmed = current.trim().to_string();
+                        if !trimmed.is_empty() {
+                            parts.push(trimmed);
+                        }
+                        current = String::new();
+                        continue;
+                    }
+                }
+
+                // Check for ;
+                if c == ';' {
+                    let trimmed = current.trim().to_string();
+                    if !trimmed.is_empty() {
+                        parts.push(trimmed);
+                    }
+                    current = String::new();
+                    continue;
+                }
+            }
+
+            current.push(c);
+        }
+
+        let trimmed = current.trim().to_string();
+        if !trimmed.is_empty() {
+            parts.push(trimmed);
+        }
+
+        if parts.is_empty() {
+            parts.push(command.to_string());
+        }
+
+        parts
+    }
+
+    fn risk_level_priority(&self, level: &RiskLevel) -> u8 {
+        match level {
+            RiskLevel::Allow => 0,
+            RiskLevel::Low => 1,
+            RiskLevel::Medium => 2,
+            RiskLevel::High => 3,
+            RiskLevel::Critical => 4,
+        }
+    }
+
+    fn evaluate_single(&self, command: &str) -> RiskResult {
         // Check whitelist first
         if self.matches_whitelist(command) {
             return RiskResult {
@@ -167,5 +282,50 @@ mod tests {
         // High rule has challenge = None (defaults to false)
         let result = engine.evaluate("cat .env");
         assert!(!result.challenge, "High rule without challenge should default to false");
+    }
+
+    #[test]
+    fn test_compound_command_and() {
+        let engine = RulesEngine::new(create_test_rules());
+        // cd && rm -rf / should detect critical
+        let result = engine.evaluate("cd /tmp && rm -rf /");
+        assert_eq!(result.level, RiskLevel::Critical);
+    }
+
+    #[test]
+    fn test_compound_command_semicolon() {
+        let engine = RulesEngine::new(create_test_rules());
+        // echo hello; rm -rf ~ should detect critical
+        let result = engine.evaluate("echo hello; rm -rf ~");
+        assert_eq!(result.level, RiskLevel::Critical);
+    }
+
+    #[test]
+    fn test_compound_command_or() {
+        let engine = RulesEngine::new(create_test_rules());
+        // false || rm -rf / should detect critical
+        let result = engine.evaluate("false || rm -rf /");
+        assert_eq!(result.level, RiskLevel::Critical);
+    }
+
+    #[test]
+    fn test_quoted_separators_not_split() {
+        let engine = RulesEngine::new(create_test_rules());
+        // echo "a && b" should not be split, should allow
+        let result = engine.evaluate("echo \"a && rm -rf /\"");
+        assert_eq!(result.level, RiskLevel::Allow);
+    }
+
+    #[test]
+    fn test_split_compound_command() {
+        let engine = RulesEngine::new(create_test_rules());
+        let parts = engine.split_compound_command("cd /tmp && rm -rf test");
+        assert_eq!(parts, vec!["cd /tmp", "rm -rf test"]);
+
+        let parts = engine.split_compound_command("a; b; c");
+        assert_eq!(parts, vec!["a", "b", "c"]);
+
+        let parts = engine.split_compound_command("echo \"a && b\"");
+        assert_eq!(parts, vec!["echo \"a && b\""]);
     }
 }
