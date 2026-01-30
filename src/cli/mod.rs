@@ -109,6 +109,10 @@ pub struct GateArgs {
     #[arg(long, conflicts_with_all = ["claude", "gemini", "opencode"])]
     pub cursor: bool,
 
+    /// File operation mode (for write_file/edit_file hooks)
+    #[arg(long)]
+    pub file_op: bool,
+
     /// Override authentication method
     #[arg(long)]
     pub auth: Option<String>,

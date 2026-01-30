@@ -43,10 +43,94 @@ pub enum AuthError {
 
 pub type AuthResult = Result<bool, AuthError>;
 
+/// Context information for authentication prompts
+#[derive(Debug, Clone, Default)]
+pub struct AuthContext {
+    /// Working directory where the AI tool is running
+    pub cwd: Option<String>,
+    /// Session ID (conversation identifier)
+    pub session_id: Option<String>,
+    /// Tool name (e.g., "Write", "Edit", "Bash")
+    pub tool_name: Option<String>,
+    /// File path being operated on (for file operations)
+    pub file_path: Option<String>,
+}
+
+impl AuthContext {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn with_cwd(mut self, cwd: impl Into<String>) -> Self {
+        self.cwd = Some(cwd.into());
+        self
+    }
+
+    pub fn with_session_id(mut self, session_id: impl Into<String>) -> Self {
+        self.session_id = Some(session_id.into());
+        self
+    }
+
+    pub fn with_tool_name(mut self, tool_name: impl Into<String>) -> Self {
+        self.tool_name = Some(tool_name.into());
+        self
+    }
+
+    pub fn with_file_path(mut self, file_path: impl Into<String>) -> Self {
+        self.file_path = Some(file_path.into());
+        self
+    }
+
+    /// Format context for display in dialog/touchid prompts
+    pub fn format_for_display(&self) -> String {
+        let mut parts = Vec::new();
+
+        if let Some(ref tool) = self.tool_name {
+            parts.push(format!("Tool: {}", tool));
+        }
+
+        if let Some(ref path) = self.file_path {
+            parts.push(format!("File: {}", path));
+        }
+
+        if let Some(ref cwd) = self.cwd {
+            // Shorten home directory
+            let display_cwd = if let Some(home) = dirs::home_dir() {
+                if let Some(home_str) = home.to_str() {
+                    cwd.replace(home_str, "~")
+                } else {
+                    cwd.clone()
+                }
+            } else {
+                cwd.clone()
+            };
+            parts.push(format!("Dir: {}", display_cwd));
+        }
+
+        if let Some(ref session) = self.session_id {
+            // Show truncated session ID
+            let short_id = if session.len() > 8 {
+                &session[..8]
+            } else {
+                session
+            };
+            parts.push(format!("Session: {}...", short_id));
+        }
+
+        parts.join("\\n")
+    }
+}
+
 /// Synchronous authenticator trait
 pub trait Authenticator: Send + Sync {
     fn is_available(&self) -> bool;
     fn authenticate(&self, command: &str) -> AuthResult;
+
+    /// Authenticate with additional context information
+    fn authenticate_with_context(&self, command: &str, _context: &AuthContext) -> AuthResult {
+        // Default implementation ignores context
+        self.authenticate(command)
+    }
 }
 
 /// Platform-default auth method (avoid "confirm" as the default)

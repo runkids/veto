@@ -4,7 +4,7 @@
 //! Works in non-interactive environments (hooks, background processes).
 
 use std::process::Command;
-use super::{AuthResult, AuthError, Authenticator};
+use super::{AuthResult, AuthError, Authenticator, AuthContext};
 
 pub struct DialogAuth;
 
@@ -12,20 +12,9 @@ impl DialogAuth {
     pub fn new() -> Self {
         Self
     }
-}
 
-impl Default for DialogAuth {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl Authenticator for DialogAuth {
-    fn is_available(&self) -> bool {
-        cfg!(target_os = "macos")
-    }
-
-    fn authenticate(&self, command: &str) -> AuthResult {
+    /// Show dialog with context information
+    fn show_dialog(&self, command: &str, context: Option<&AuthContext>) -> AuthResult {
         if !self.is_available() {
             return Err(AuthError::NotAvailable("Dialog auth is only available on macOS".to_string()));
         }
@@ -42,9 +31,21 @@ impl Authenticator for DialogAuth {
             escaped_cmd.clone()
         };
 
+        // Build dialog message with context
+        let message = if let Some(ctx) = context {
+            let ctx_info = ctx.format_for_display();
+            if ctx_info.is_empty() {
+                format!("Allow this command?\\n\\n{}", display_cmd)
+            } else {
+                format!("Allow this command?\\n\\n{}\\n\\n{}", display_cmd, ctx_info)
+            }
+        } else {
+            format!("Allow this command?\\n\\n{}", display_cmd)
+        };
+
         let script = format!(
-            r#"display dialog "Allow this command?\n\n{}" with title "Veto Security" buttons {{"Deny", "Allow"}} default button "Deny" cancel button "Deny" with icon caution"#,
-            display_cmd
+            r#"display dialog "{}" with title "Veto Security" buttons {{"Deny", "Allow"}} default button "Deny" cancel button "Deny" with icon caution"#,
+            message
         );
 
         let output = Command::new("osascript")
@@ -64,6 +65,26 @@ impl Authenticator for DialogAuth {
             // User clicked cancel or closed dialog
             Err(AuthError::Cancelled)
         }
+    }
+}
+
+impl Default for DialogAuth {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Authenticator for DialogAuth {
+    fn is_available(&self) -> bool {
+        cfg!(target_os = "macos")
+    }
+
+    fn authenticate(&self, command: &str) -> AuthResult {
+        self.show_dialog(command, None)
+    }
+
+    fn authenticate_with_context(&self, command: &str, context: &AuthContext) -> AuthResult {
+        self.show_dialog(command, Some(context))
     }
 }
 

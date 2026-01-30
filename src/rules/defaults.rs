@@ -30,6 +30,20 @@ pub fn default_rules() -> Rules {
                 reason: Some("Credential exposure risk".to_string()),
                 challenge: None,
             },
+            // File operation rules (Gemini CLI write_file/edit_file)
+            Rule {
+                category: "file-system-critical".to_string(),
+                patterns: vec![
+                    "*_file:/etc/passwd".to_string(),
+                    "*_file:/etc/shadow".to_string(),
+                    "*_file:/etc/sudoers*".to_string(),
+                    "*_file:~/.ssh/*".to_string(),
+                    "*_file:~/.gnupg/*".to_string(),
+                ],
+                paths: vec![],
+                reason: Some("Write to critical system/auth file".to_string()),
+                challenge: None,
+            },
         ],
         high: vec![
             Rule {
@@ -66,6 +80,22 @@ pub fn default_rules() -> Rules {
                 ],
                 paths: vec![],
                 reason: Some("Destructive git operation".to_string()),
+                challenge: None,
+            },
+            // File operation rules (Gemini CLI write_file/edit_file)
+            Rule {
+                category: "file-secrets".to_string(),
+                patterns: vec![
+                    "*_file:*.env".to_string(),
+                    "*_file:*.env.*".to_string(),
+                    "*_file:*secret*".to_string(),
+                    "*_file:*credential*".to_string(),
+                    "*_file:*password*".to_string(),
+                    "*_file:*.pem".to_string(),
+                    "*_file:*.key".to_string(),
+                ],
+                paths: vec![],
+                reason: Some("Write to secrets/credential file".to_string()),
                 challenge: None,
             },
         ],

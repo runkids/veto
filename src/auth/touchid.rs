@@ -5,7 +5,7 @@
 
 use colored::Colorize;
 
-use super::{AuthError, AuthResult, Authenticator};
+use super::{AuthError, AuthResult, Authenticator, AuthContext};
 
 /// Default prompt for Touch ID
 const DEFAULT_PROMPT: &str = "Veto: Authorize high-risk command";
@@ -20,6 +20,56 @@ impl TouchIdAuth {
         Self {
             prompt: DEFAULT_PROMPT.to_string(),
         }
+    }
+
+    /// Build prompt with context information
+    fn build_prompt(&self, command: &str, context: Option<&AuthContext>) -> String {
+        let mut parts = vec![self.prompt.clone()];
+
+        // Add context info if available
+        if let Some(ctx) = context {
+            if let Some(ref tool) = ctx.tool_name {
+                parts.push(format!("Tool: {}", tool));
+            }
+            if let Some(ref path) = ctx.file_path {
+                // Shorten path if too long
+                let display_path = if path.len() > 40 {
+                    format!("...{}", &path[path.len()-37..])
+                } else {
+                    path.clone()
+                };
+                parts.push(format!("File: {}", display_path));
+            }
+            if let Some(ref cwd) = ctx.cwd {
+                // Shorten home directory
+                let display_cwd = if let Some(home) = dirs::home_dir() {
+                    if let Some(home_str) = home.to_str() {
+                        cwd.replace(home_str, "~")
+                    } else {
+                        cwd.clone()
+                    }
+                } else {
+                    cwd.clone()
+                };
+                // Further truncate if needed
+                let display_cwd = if display_cwd.len() > 30 {
+                    format!("...{}", &display_cwd[display_cwd.len()-27..])
+                } else {
+                    display_cwd
+                };
+                parts.push(format!("Dir: {}", display_cwd));
+            }
+        }
+
+        // Truncate command for display
+        let display_cmd = if command.len() > 50 {
+            format!("{}...", &command[..47])
+        } else {
+            command.to_string()
+        };
+        parts.push(format!("Cmd: {}", display_cmd));
+
+        parts.join(" | ")
     }
 
 
@@ -38,7 +88,7 @@ impl TouchIdAuth {
 
     /// Perform biometric authentication using compiled helper binary
     #[cfg(target_os = "macos")]
-    fn do_authenticate(&self) -> Result<bool, AuthError> {
+    fn do_authenticate(&self, prompt: &str) -> Result<bool, AuthError> {
         use std::process::Command;
 
         // Try to find veto-touchid helper in common locations
@@ -55,13 +105,13 @@ impl TouchIdAuth {
         let output = match helper_path {
             Some(path) => {
                 Command::new(path)
-                    .arg(&self.prompt)
+                    .arg(prompt)
                     .output()
                     .map_err(|e| AuthError::Failed(format!("Touch ID helper failed: {}", e)))?
             }
             None => {
                 // Fallback to inline Swift if helper not found
-                return self.do_authenticate_inline();
+                return self.do_authenticate_inline(prompt);
             }
         };
 
@@ -78,8 +128,10 @@ impl TouchIdAuth {
 
     /// Fallback: inline Swift execution (shows swift-frontend in dialog)
     #[cfg(target_os = "macos")]
-    fn do_authenticate_inline(&self) -> Result<bool, AuthError> {
+    fn do_authenticate_inline(&self, prompt: &str) -> Result<bool, AuthError> {
         use std::process::Command;
+
+        let escaped_prompt = prompt.replace('"', "\\\"");
 
         let swift_code = format!(r#"
 import LocalAuthentication
@@ -104,7 +156,7 @@ if context.canEvaluatePolicy(.deviceOwnerAuthentication, error: &error) {{
 }}
 print("AUTH_UNAVAILABLE")
 exit(2)
-"#, self.prompt.replace('"', "\\\""), self.prompt.replace('"', "\\\""));
+"#, escaped_prompt, escaped_prompt);
 
         let output = Command::new("swift")
             .args(["-e", &swift_code])
@@ -123,8 +175,7 @@ exit(2)
     }
 
     #[cfg(not(target_os = "macos"))]
-    fn do_authenticate(&self) -> Result<bool, AuthError> {
-        let _ = &self.prompt; // Used on macOS
+    fn do_authenticate(&self, _prompt: &str) -> Result<bool, AuthError> {
         Err(AuthError::NotAvailable("Touch ID is only available on macOS".to_string()))
     }
 }
@@ -144,7 +195,26 @@ impl Authenticator for TouchIdAuth {
         eprintln!("{} {}", "Command:".yellow(), command);
         eprintln!("{}", "Touch ID verification required".cyan());
 
-        self.do_authenticate()
+        self.do_authenticate(&self.prompt)
+    }
+
+    fn authenticate_with_context(&self, command: &str, context: &AuthContext) -> AuthResult {
+        let prompt = self.build_prompt(command, Some(context));
+
+        // Print context info to stderr for visibility
+        eprintln!("{} {}", "Command:".yellow(), command);
+        if let Some(ref tool) = context.tool_name {
+            eprintln!("{} {}", "Tool:".yellow(), tool);
+        }
+        if let Some(ref path) = context.file_path {
+            eprintln!("{} {}", "File:".yellow(), path);
+        }
+        if let Some(ref cwd) = context.cwd {
+            eprintln!("{} {}", "Dir:".yellow(), cwd);
+        }
+        eprintln!("{}", "Touch ID verification required".cyan());
+
+        self.do_authenticate(&prompt)
     }
 }
 

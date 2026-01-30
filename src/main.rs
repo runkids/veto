@@ -42,17 +42,28 @@ fn main() {
             run_exec(&engine, &command, auth, cli.verbose);
         }
         Commands::Gate(args) => {
-            let actual_command = if args.claude {
-                match read_claude_stdin_command() {
-                    Ok(cmd) => cmd,
+            // Parse stdin and extract command + context
+            let (actual_command, auth_context) = if args.claude {
+                let reader = if args.file_op {
+                    read_claude_stdin_file_op
+                } else {
+                    read_claude_stdin_command
+                };
+                match reader() {
+                    Ok(result) => (result.command, Some(result.context)),
                     Err(e) => {
                         eprintln!("{} {}", "Error reading Claude stdin:".red(), e);
                         std::process::exit(1);
                     }
                 }
             } else if args.gemini {
-                match read_gemini_stdin_command() {
-                    Ok(cmd) => cmd,
+                let reader = if args.file_op {
+                    read_gemini_stdin_file_op
+                } else {
+                    read_gemini_stdin_command
+                };
+                match reader() {
+                    Ok(result) => (result.command, Some(result.context)),
                     Err(e) => {
                         eprintln!("{} {}", "Error reading Gemini stdin:".red(), e);
                         std::process::exit(1);
@@ -60,7 +71,7 @@ fn main() {
                 }
             } else if args.cursor {
                 match read_cursor_stdin_command() {
-                    Ok(cmd) => cmd,
+                    Ok(result) => (result.command, Some(result.context)),
                     Err(e) => {
                         eprintln!("{} {}", "Error reading Cursor stdin:".red(), e);
                         std::process::exit(1);
@@ -68,7 +79,7 @@ fn main() {
                 }
             } else {
                 match args.command {
-                    Some(cmd) => cmd,
+                    Some(cmd) => (cmd, None),
                     None => {
                         eprintln!("{}", "Error: command required (or use --claude/--gemini/--opencode/--cursor)".red());
                         std::process::exit(1);
@@ -78,6 +89,7 @@ fn main() {
             run_gate(
                 &engine,
                 &actual_command,
+                auth_context,
                 args.auth,
                 args.totp,
                 args.pin,
@@ -152,55 +164,167 @@ fn main() {
     }
 }
 
+/// Result from reading stdin, includes command and optional context
+struct StdinReadResult {
+    command: String,
+    context: auth::AuthContext,
+}
+
 /// Read command from Claude Code stdin JSON format
 ///
 /// Claude Code sends JSON like:
-/// {"tool_name": "Bash", "tool_input": {"command": "rm -rf test"}}
-fn read_claude_stdin_command() -> Result<String, Box<dyn std::error::Error>> {
+/// {"tool_name": "Bash", "tool_input": {"command": "rm -rf test"}, "cwd": "/path", "session_id": "abc123"}
+fn read_claude_stdin_command() -> Result<StdinReadResult, Box<dyn std::error::Error>> {
     use std::io::Read;
     let mut input = String::new();
     std::io::stdin().read_to_string(&mut input)?;
 
     let json: serde_json::Value = serde_json::from_str(&input)?;
 
-    json["tool_input"]["command"]
+    let command = json["tool_input"]["command"]
         .as_str()
         .map(String::from)
-        .ok_or_else(|| "No command found in Claude JSON (expected tool_input.command)".into())
+        .ok_or_else(|| "No command found in Claude JSON (expected tool_input.command)")?;
+
+    // Extract context information
+    let context = auth::AuthContext::new()
+        .with_cwd(json["cwd"].as_str().unwrap_or("").to_string())
+        .with_session_id(json["session_id"].as_str().unwrap_or("").to_string())
+        .with_tool_name(json["tool_name"].as_str().unwrap_or("Bash").to_string());
+
+    Ok(StdinReadResult { command, context })
+}
+
+/// Read file operation from Claude Code stdin JSON format
+///
+/// Claude Code sends JSON like:
+/// {"tool_name":"Write","tool_input":{"file_path":"/etc/passwd","content":"..."}, "cwd": "/path", "session_id": "abc123"}
+/// {"tool_name":"Edit","tool_input":{"file_path":"/etc/shadow","old_string":"...","new_string":"..."}}
+///
+/// Returns a synthetic command string for risk evaluation plus context
+fn read_claude_stdin_file_op() -> Result<StdinReadResult, Box<dyn std::error::Error>> {
+    use std::io::Read;
+    let mut input = String::new();
+    std::io::stdin().read_to_string(&mut input)?;
+
+    let json: serde_json::Value = serde_json::from_str(&input)?;
+
+    let tool_name = json["tool_name"]
+        .as_str()
+        .unwrap_or("unknown");
+
+    let path = json["tool_input"]["file_path"]
+        .as_str()
+        .or_else(|| json["tool_input"]["path"].as_str());
+
+    match path {
+        Some(p) => {
+            // Create synthetic command for risk evaluation
+            // e.g., "write_file:/etc/passwd" or "edit_file:~/.ssh/authorized_keys"
+            let command = format!("{}:{}", tool_name.to_lowercase(), p);
+
+            // Extract context information
+            let context = auth::AuthContext::new()
+                .with_cwd(json["cwd"].as_str().unwrap_or("").to_string())
+                .with_session_id(json["session_id"].as_str().unwrap_or("").to_string())
+                .with_tool_name(tool_name.to_string())
+                .with_file_path(p.to_string());
+
+            Ok(StdinReadResult { command, context })
+        }
+        None => Err("No path found in Claude file operation JSON".into())
+    }
 }
 
 /// Read command from Gemini CLI stdin JSON format
 ///
 /// Gemini CLI sends JSON like:
 /// {"tool_name":"run_shell_command","tool_input":{"command":"rm -rf test"}}
-fn read_gemini_stdin_command() -> Result<String, Box<dyn std::error::Error>> {
+fn read_gemini_stdin_command() -> Result<StdinReadResult, Box<dyn std::error::Error>> {
     use std::io::Read;
     let mut input = String::new();
     std::io::stdin().read_to_string(&mut input)?;
 
     let json: serde_json::Value = serde_json::from_str(&input)?;
 
-    json["tool_input"]["command"]
+    let command = json["tool_input"]["command"]
         .as_str()
         .map(String::from)
-        .ok_or_else(|| "No command found in Gemini JSON (expected tool_input.command)".into())
+        .ok_or_else(|| "No command found in Gemini JSON (expected tool_input.command)")?;
+
+    // Extract context information (Gemini may have similar fields)
+    let context = auth::AuthContext::new()
+        .with_cwd(json["cwd"].as_str().unwrap_or("").to_string())
+        .with_session_id(json["session_id"].as_str().unwrap_or("").to_string())
+        .with_tool_name(json["tool_name"].as_str().unwrap_or("run_shell_command").to_string());
+
+    Ok(StdinReadResult { command, context })
+}
+
+/// Read file operation from Gemini CLI stdin JSON format
+///
+/// Gemini CLI sends JSON like:
+/// {"tool_name":"write_file","tool_input":{"path":"/etc/passwd","content":"..."}}
+/// {"tool_name":"edit_file","tool_input":{"path":"/etc/shadow","old_string":"...","new_string":"..."}}
+///
+/// Returns a synthetic command string for risk evaluation plus context
+fn read_gemini_stdin_file_op() -> Result<StdinReadResult, Box<dyn std::error::Error>> {
+    use std::io::Read;
+    let mut input = String::new();
+    std::io::stdin().read_to_string(&mut input)?;
+
+    let json: serde_json::Value = serde_json::from_str(&input)?;
+
+    let tool_name = json["tool_name"]
+        .as_str()
+        .unwrap_or("unknown");
+
+    let path = json["tool_input"]["path"]
+        .as_str()
+        .or_else(|| json["tool_input"]["file_path"].as_str())
+        .or_else(|| json["tool_input"]["target_file"].as_str());
+
+    match path {
+        Some(p) => {
+            // Create synthetic command for risk evaluation
+            // e.g., "write_file:/etc/passwd" or "edit_file:~/.ssh/authorized_keys"
+            let command = format!("{}:{}", tool_name, p);
+
+            // Extract context information
+            let context = auth::AuthContext::new()
+                .with_cwd(json["cwd"].as_str().unwrap_or("").to_string())
+                .with_session_id(json["session_id"].as_str().unwrap_or("").to_string())
+                .with_tool_name(tool_name.to_string())
+                .with_file_path(p.to_string());
+
+            Ok(StdinReadResult { command, context })
+        }
+        None => Err("No path found in Gemini file operation JSON".into())
+    }
 }
 
 /// Read command from Cursor CLI stdin JSON format
 ///
 /// Cursor CLI sends JSON like:
 /// {"command":"rm -rf test","cwd":"/path/to/project"}
-fn read_cursor_stdin_command() -> Result<String, Box<dyn std::error::Error>> {
+fn read_cursor_stdin_command() -> Result<StdinReadResult, Box<dyn std::error::Error>> {
     use std::io::Read;
     let mut input = String::new();
     std::io::stdin().read_to_string(&mut input)?;
 
     let json: serde_json::Value = serde_json::from_str(&input)?;
 
-    json["command"]
+    let command = json["command"]
         .as_str()
         .map(String::from)
-        .ok_or_else(|| "No command found in Cursor JSON (expected command)".into())
+        .ok_or_else(|| "No command found in Cursor JSON (expected command)")?;
+
+    // Cursor provides cwd in the JSON
+    let context = auth::AuthContext::new()
+        .with_cwd(json["cwd"].as_str().unwrap_or("").to_string())
+        .with_tool_name("Bash".to_string());
+
+    Ok(StdinReadResult { command, context })
 }
 
 fn run_check(engine: &RulesEngine, command: &str, verbose: bool) {
@@ -284,6 +408,7 @@ fn parse_env_prefix(command: &str) -> (std::collections::HashMap<String, String>
 fn run_gate(
     engine: &RulesEngine,
     command: &str,
+    auth_context: Option<auth::AuthContext>,
     auth_override: Option<String>,
     totp_code: Option<String>,
     pin_code: Option<String>,
@@ -522,9 +647,14 @@ fn run_gate(
                 }
             }
             "dialog" => {
-                // macOS dialog: show dialog directly
+                // macOS dialog: show dialog directly (with context if available)
                 let auth = DialogAuth::new();
-                match auth.authenticate(command) {
+                let auth_result = if let Some(ref ctx) = auth_context {
+                    auth.authenticate_with_context(command, ctx)
+                } else {
+                    auth.authenticate(command)
+                };
+                match auth_result {
                     Ok(true) => {
                         output_allowed(eval_command, &result.level, "dialog", claude_mode, gemini_mode, cursor_mode);
                     }
@@ -544,9 +674,14 @@ fn run_gate(
                 }
             }
             "touchid" => {
-                // Touch ID: authenticate directly
+                // Touch ID: authenticate directly (with context if available)
                 let auth = TouchIdAuth::new();
-                match auth.authenticate(command) {
+                let auth_result = if let Some(ref ctx) = auth_context {
+                    auth.authenticate_with_context(command, ctx)
+                } else {
+                    auth.authenticate(command)
+                };
+                match auth_result {
                     Ok(true) => {
                         output_allowed(eval_command, &result.level, "Touch ID", claude_mode, gemini_mode, cursor_mode);
                     }

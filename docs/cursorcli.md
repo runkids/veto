@@ -48,6 +48,16 @@ veto writes a `beforeShellExecution` hook pointing to `veto gate --cursor`.
 If a command is explicitly rejected (dialog/touchid/telegram), Cursor CLI will not re-prompt.
 To retry after an explicit user approval, run with `VETO_FORCE=yes`.
 
+## Limitations
+
+Cursor CLI does **NOT** support file operation hooks:
+
+- No `beforeFileEdit` hook available
+- `afterFileEdit` is informational only (cannot block writes)
+- CLI mode only supports `beforeShellExecution`
+
+**Workaround:** Use `dialog` or `touchid` authentication for shell commands. For file operations, rely on your editor's built-in protections or review changes manually.
+
 ## Debugging
 
 ```bash

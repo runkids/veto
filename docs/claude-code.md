@@ -175,7 +175,18 @@ If you prefer to configure manually, add to `~/.claude/settings.json`:
         "hooks": [
           {
             "type": "command",
-            "command": "veto gate --claude"
+            "command": "veto gate --claude",
+            "timeout": 90
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "veto gate --claude --file-op",
+            "timeout": 30
           }
         ]
       }
@@ -183,6 +194,8 @@ If you prefer to configure manually, add to `~/.claude/settings.json`:
   }
 }
 ```
+
+**Note:** Claude Code uses **seconds** for timeout (not milliseconds).
 
 ## veto shell (Alternative)
 

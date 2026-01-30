@@ -16,12 +16,14 @@ veto setup gemini --uninstall
 
 ## How It Works
 
-Gemini CLI invokes a `BeforeTool` hook before running `run_shell_command`.
-The hook calls `veto gate --gemini` to evaluate risk and enforce authentication.
+Gemini CLI invokes `BeforeTool` hooks before executing tools:
 
-If a command needs verification, veto responds with a message instructing the
-assistant to ask you for a PIN/TOTP/confirmation and retry the command with
-the appropriate `VETO_*` prefix.
+1. **Shell commands** (`run_shell_command`) - veto evaluates command risk
+2. **File operations** (`write_file`, `edit_file`, `replace_in_file`) - veto checks file path sensitivity
+
+If an operation needs verification, veto responds with a message instructing the
+assistant to ask you for a PIN/TOTP/confirmation and retry with the appropriate
+`VETO_*` prefix.
 
 ## Manual Configuration
 
@@ -35,14 +37,41 @@ Add this to `~/.gemini/settings.json`:
         "matcher": "run_shell_command",
         "hooks": [
           {
+            "name": "veto-gate-shell",
             "type": "command",
-            "command": "veto gate --gemini"
+            "command": "veto gate --gemini",
+            "timeout": 90000,
+            "description": "Security gate for shell commands"
+          }
+        ]
+      },
+      {
+        "matcher": "write_file|edit_file|replace_in_file",
+        "hooks": [
+          {
+            "name": "veto-gate-file",
+            "type": "command",
+            "command": "veto gate --gemini --file-op",
+            "timeout": 30000,
+            "description": "Security gate for file write operations"
           }
         ]
       }
     ]
   }
 }
+```
+
+## Managing Hooks
+
+Use Gemini CLI's built-in commands to manage hooks:
+
+```bash
+/hooks panel           # View all hooks
+/hooks enable-all      # Enable all hooks
+/hooks disable-all     # Disable all hooks
+/hooks enable veto-gate-shell   # Enable specific hook
+/hooks disable veto-gate-file   # Disable specific hook
 ```
 
 ## Verify

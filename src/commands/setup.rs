@@ -208,12 +208,24 @@ fn add_veto_hooks(settings_path: &PathBuf) -> Result<(), Box<dyn std::error::Err
         serde_json::json!({})
     };
 
-    // Create veto hook configuration
-    let veto_hook = serde_json::json!({
+    // Create veto hook configuration for shell commands
+    // Note: Claude Code uses seconds for timeout (not milliseconds)
+    let bash_hook = serde_json::json!({
         "matcher": "Bash",
         "hooks": [{
             "type": "command",
-            "command": "veto gate --claude"
+            "command": "veto gate --claude",
+            "timeout": 90
+        }]
+    });
+
+    // Create veto hook configuration for file operations (Write|Edit)
+    let file_hook = serde_json::json!({
+        "matcher": "Write|Edit",
+        "hooks": [{
+            "type": "command",
+            "command": "veto gate --claude --file-op",
+            "timeout": 30
         }]
     });
 
@@ -222,35 +234,71 @@ fn add_veto_hooks(settings_path: &PathBuf) -> Result<(), Box<dyn std::error::Err
         settings["hooks"] = serde_json::json!({});
     }
 
-    // Get or create PreToolUse array
-    let pre_tool_use = settings["hooks"]
-        .get_mut("PreToolUse")
-        .and_then(|v| v.as_array_mut());
-
-    if let Some(hooks) = pre_tool_use {
-        // Check if veto hook already exists
-        let already_exists = hooks.iter().any(|h| {
+    // Helper to check if a veto hook with specific command exists
+    let has_veto_hook = |hooks: &[serde_json::Value], cmd_contains: &str| {
+        hooks.iter().any(|h| {
             h["hooks"]
                 .as_array()
                 .map(|inner| {
                     inner.iter().any(|ih| {
                         ih["command"]
                             .as_str()
-                            .map(|c| c.contains("veto gate"))
+                            .map(|c| c.contains(cmd_contains))
+                            .unwrap_or(false)
+                    })
+                })
+                .unwrap_or(false)
+        })
+    };
+
+    // Get or create PreToolUse array
+    let pre_tool_use = settings["hooks"]
+        .get_mut("PreToolUse")
+        .and_then(|v| v.as_array_mut());
+
+    if let Some(hooks) = pre_tool_use {
+        let mut updated = false;
+
+        // Find existing bash hook index
+        let bash_hook_idx = hooks.iter().position(|h| {
+            h["matcher"].as_str() == Some("Bash") &&
+            h["hooks"]
+                .as_array()
+                .map(|inner| {
+                    inner.iter().any(|ih| {
+                        ih["command"]
+                            .as_str()
+                            .map(|c| c.contains("veto gate") && !c.contains("--file-op"))
                             .unwrap_or(false)
                     })
                 })
                 .unwrap_or(false)
         });
 
-        if already_exists {
+        if let Some(idx) = bash_hook_idx {
+            // Update existing bash hook with timeout if missing
+            if hooks[idx]["hooks"][0].get("timeout").is_none() {
+                hooks[idx] = bash_hook;
+                updated = true;
+            }
+        } else {
+            // Add new bash hook
+            hooks.push(bash_hook);
+            updated = true;
+        }
+
+        // Add file hook if not exists
+        if !has_veto_hook(hooks, "--file-op") {
+            hooks.push(file_hook);
+            updated = true;
+        }
+
+        if !updated {
             println!("  {} veto hooks already configured", "○".yellow());
             return Ok(());
         }
-
-        hooks.push(veto_hook);
     } else {
-        settings["hooks"]["PreToolUse"] = serde_json::json!([veto_hook]);
+        settings["hooks"]["PreToolUse"] = serde_json::json!([bash_hook, file_hook]);
     }
 
     // Write settings back
@@ -274,12 +322,27 @@ fn add_gemini_hooks(settings_path: &PathBuf) -> Result<(), Box<dyn std::error::E
         serde_json::json!({})
     };
 
-    // Create veto hook configuration
-    let veto_hook = serde_json::json!({
+    // Create veto hook configuration for shell commands
+    let shell_hook = serde_json::json!({
         "matcher": "run_shell_command",
         "hooks": [{
+            "name": "veto-gate-shell",
             "type": "command",
-            "command": "veto gate --gemini"
+            "command": "veto gate --gemini",
+            "timeout": 90000,
+            "description": "Security gate for shell commands"
+        }]
+    });
+
+    // Create veto hook configuration for file operations
+    let file_hook = serde_json::json!({
+        "matcher": "write_file|edit_file|replace_in_file",
+        "hooks": [{
+            "name": "veto-gate-file",
+            "type": "command",
+            "command": "veto gate --gemini --file-op",
+            "timeout": 30000,
+            "description": "Security gate for file write operations"
         }]
     });
 
@@ -288,35 +351,50 @@ fn add_gemini_hooks(settings_path: &PathBuf) -> Result<(), Box<dyn std::error::E
         settings["hooks"] = serde_json::json!({});
     }
 
+    // Helper to check if a veto hook with given name exists
+    let has_veto_hook = |hooks: &[serde_json::Value], name: &str| {
+        hooks.iter().any(|h| {
+            h["hooks"]
+                .as_array()
+                .map(|inner| {
+                    inner.iter().any(|ih| {
+                        ih["name"].as_str() == Some(name)
+                            || ih["command"]
+                                .as_str()
+                                .map(|c| c.contains("veto gate"))
+                                .unwrap_or(false)
+                    })
+                })
+                .unwrap_or(false)
+        })
+    };
+
     // Get or create BeforeTool array
     let before_tool = settings["hooks"]
         .get_mut("BeforeTool")
         .and_then(|v| v.as_array_mut());
 
     if let Some(hooks) = before_tool {
-        // Check if veto hook already exists
-        let already_exists = hooks.iter().any(|h| {
-            h["hooks"]
-                .as_array()
-                .map(|inner| {
-                    inner.iter().any(|ih| {
-                        ih["command"]
-                            .as_str()
-                            .map(|c| c.contains("veto gate"))
-                            .unwrap_or(false)
-                    })
-                })
-                .unwrap_or(false)
-        });
+        let mut added = 0;
 
-        if already_exists {
+        // Add shell hook if not exists
+        if !has_veto_hook(hooks, "veto-gate-shell") {
+            hooks.push(shell_hook);
+            added += 1;
+        }
+
+        // Add file hook if not exists
+        if !has_veto_hook(hooks, "veto-gate-file") {
+            hooks.push(file_hook);
+            added += 1;
+        }
+
+        if added == 0 {
             println!("  {} veto hooks already configured", "○".yellow());
             return Ok(());
         }
-
-        hooks.push(veto_hook);
     } else {
-        settings["hooks"]["BeforeTool"] = serde_json::json!([veto_hook]);
+        settings["hooks"]["BeforeTool"] = serde_json::json!([shell_hook, file_hook]);
     }
 
     // Write settings back
@@ -587,6 +665,9 @@ fn add_opencode_plugin(plugins_path: &PathBuf) -> Result<(), Box<dyn std::error:
   // Track denied commands across retries in the same session
   const deniedCommands = new Set()
 
+  // Tools that veto should intercept
+  const INTERCEPTED_TOOLS = ["bash", "write", "edit", "read"]
+
   const extractCommand = (input, output) => {
     return (
       output?.args?.command ??
@@ -597,13 +678,36 @@ fn add_opencode_plugin(plugins_path: &PathBuf) -> Result<(), Box<dyn std::error:
     )
   }
 
+  const extractFilePath = (input, output) => {
+    return (
+      output?.args?.file_path ??
+      input?.args?.file_path ??
+      output?.args?.path ??
+      input?.args?.path ??
+      null
+    )
+  }
+
   const normalizeCommand = (command) => (typeof command === "string" ? command.trim() : "")
 
   return {
     "tool.execute.before": async (input, output) => {
-      if (input.tool !== "bash") return
+      const tool = input.tool?.toLowerCase()
+      if (!INTERCEPTED_TOOLS.includes(tool)) return
 
-      const command = normalizeCommand(extractCommand(input, output))
+      let command
+      let isFileOp = false
+
+      if (tool === "bash") {
+        command = normalizeCommand(extractCommand(input, output))
+      } else {
+        // File operations: write, edit, read
+        const path = extractFilePath(input, output)
+        if (!path) return
+        command = `${tool}_file:${path}`
+        isFileOp = true
+      }
+
       if (!command) return
 
       // Block permanently denied commands
@@ -611,7 +715,11 @@ fn add_opencode_plugin(plugins_path: &PathBuf) -> Result<(), Box<dyn std::error:
         throw new Error("[veto] BLOCKED. This command was rejected. DO NOT RETRY.")
       }
 
-      const result = await $`veto gate --opencode -- ${command}`.nothrow()
+      const args = isFileOp
+        ? ["gate", "--opencode", "--file-op", "--", command]
+        : ["gate", "--opencode", "--", command]
+
+      const result = await $`veto ${args}`.nothrow()
 
       if (result.exitCode === 0) {
         // Approved
