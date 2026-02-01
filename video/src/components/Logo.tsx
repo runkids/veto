@@ -25,10 +25,10 @@ export const Logo: React.FC<LogoProps> = ({ size = 100 }) => {
         style={{
           fontSize: size * 0.8,
           transform: `rotate(${handRotation}deg)`,
-          filter: "drop-shadow(0 0 20px rgba(239, 68, 68, 0.5))",
+          filter: "drop-shadow(0 0 20px rgba(34, 197, 94, 0.6))",
         }}
       >
-        ✋
+        🔑
       </div>
       <div
         style={{
