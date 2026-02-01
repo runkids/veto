@@ -330,7 +330,7 @@ fn add_gemini_hooks(settings_path: &PathBuf) -> Result<(), Box<dyn std::error::E
             "type": "command",
             "command": "veto gate --gemini",
             "timeout": 90000,
-            "description": "Security gate for shell commands"
+            "description": "Authorize shell commands"
         }]
     });
 
@@ -342,7 +342,7 @@ fn add_gemini_hooks(settings_path: &PathBuf) -> Result<(), Box<dyn std::error::E
             "type": "command",
             "command": "veto gate --gemini --file-op",
             "timeout": 30000,
-            "description": "Security gate for file write operations"
+            "description": "Authorize file operations"
         }]
     });
 

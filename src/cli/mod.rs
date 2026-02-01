@@ -3,7 +3,7 @@ use crate::commands::AuthCommands;
 
 #[derive(Parser)]
 #[command(name = "veto")]
-#[command(about = "AI operation guardian - verify before execute")]
+#[command(about = "The sudo command for AI Agents")]
 #[command(version)]
 pub struct Cli {
     #[command(subcommand)]

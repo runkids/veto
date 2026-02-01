@@ -8,7 +8,7 @@ use crate::commands::{run_auth_command, AuthCommands};
 use crate::auth::keyring::SecureKeyring;
 
 const DEFAULT_CONFIG_MACOS: &str = r#"# Veto Configuration
-# AI operation guardian - verify before execute
+# The sudo command for AI Agents
 
 [auth]
 # Default authentication method: "confirm", "pin", "touchid", "telegram", "totp", "dialog"
@@ -50,7 +50,7 @@ default = "touchid"
 "#;
 
 const DEFAULT_CONFIG_OTHER: &str = r#"# Veto Configuration
-# AI operation guardian - verify before execute
+# The sudo command for AI Agents
 
 [auth]
 # Default authentication method: "confirm", "pin", "touchid", "telegram", "totp", "dialog"
