@@ -33,7 +33,7 @@ default = "touchid"
 # TouchID configuration (macOS only)
 # [auth.touchid]
 # enabled = true
-# prompt = "Authorize veto operation"
+# prompt = "Veto: Approve running this command?"
 
 # PIN configuration - set via: veto auth set-pin
 # [auth.pin]
@@ -75,7 +75,7 @@ default = "pin"
 # TouchID configuration (macOS only)
 # [auth.touchid]
 # enabled = true
-# prompt = "Authorize veto operation"
+# prompt = "Veto: Approve running this command?"
 
 # PIN configuration - set via: veto auth set-pin
 # [auth.pin]

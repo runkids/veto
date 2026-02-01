@@ -8,7 +8,7 @@ use colored::Colorize;
 use super::{AuthError, AuthResult, Authenticator, AuthContext};
 
 /// Default prompt for Touch ID
-const DEFAULT_PROMPT: &str = "Veto: Authorize high-risk command";
+const DEFAULT_PROMPT: &str = "Veto: Approve running this command?";
 
 /// Touch ID authenticator (macOS only)
 pub struct TouchIdAuth {
@@ -23,53 +23,18 @@ impl TouchIdAuth {
     }
 
     /// Build prompt with context information
-    fn build_prompt(&self, command: &str, context: Option<&AuthContext>) -> String {
-        let mut parts = vec![self.prompt.clone()];
-
-        // Add context info if available
-        if let Some(ctx) = context {
-            if let Some(ref tool) = ctx.tool_name {
-                parts.push(format!("Tool: {}", tool));
-            }
-            if let Some(ref path) = ctx.file_path {
-                // Shorten path if too long
-                let display_path = if path.len() > 40 {
-                    format!("...{}", &path[path.len()-37..])
-                } else {
-                    path.clone()
-                };
-                parts.push(format!("File: {}", display_path));
-            }
-            if let Some(ref cwd) = ctx.cwd {
-                // Shorten home directory
-                let display_cwd = if let Some(home) = dirs::home_dir() {
-                    if let Some(home_str) = home.to_str() {
-                        cwd.replace(home_str, "~")
-                    } else {
-                        cwd.clone()
-                    }
-                } else {
-                    cwd.clone()
-                };
-                // Further truncate if needed
-                let display_cwd = if display_cwd.len() > 30 {
-                    format!("...{}", &display_cwd[display_cwd.len()-27..])
-                } else {
-                    display_cwd
-                };
-                parts.push(format!("Dir: {}", display_cwd));
-            }
-        }
+    fn build_prompt(&self, command: &str, _context: Option<&AuthContext>) -> String {
+        let mut lines = vec![self.prompt.clone()];
 
         // Truncate command for display
-        let display_cmd = if command.len() > 50 {
-            format!("{}...", &command[..47])
+        let display_cmd = if command.len() > 80 {
+            format!("{}...", &command[..77])
         } else {
             command.to_string()
         };
-        parts.push(format!("Cmd: {}", display_cmd));
+        lines.push(format!("Command: {}", display_cmd));
 
-        parts.join(" | ")
+        lines.join("\n")
     }
 
 
@@ -91,8 +56,11 @@ impl TouchIdAuth {
     fn do_authenticate(&self, prompt: &str) -> Result<bool, AuthError> {
         use std::process::Command;
 
-        // Try to find veto-touchid helper in common locations
+        // Try to find Touch ID helper in common locations
         let helper_paths = [
+            dirs::home_dir().map(|p| p.join(".local/bin/VetoAuth")),
+            Some(std::path::PathBuf::from("/usr/local/bin/VetoAuth")),
+            // Backward compatible name
             dirs::home_dir().map(|p| p.join(".local/bin/veto-touchid")),
             Some(std::path::PathBuf::from("/usr/local/bin/veto-touchid")),
         ];

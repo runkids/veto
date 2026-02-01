@@ -1,13 +1,13 @@
 #!/usr/bin/env swift
 // veto Touch ID helper
-// Compiled binary will show "veto-touchid" in Touch ID dialog
+// Compiled binary will show "VetoAuth" in Touch ID dialog
 
 import LocalAuthentication
 import Foundation
 
 let reason = CommandLine.arguments.count > 1
     ? CommandLine.arguments[1]
-    : "Veto: Authorize high-risk command"
+    : "Veto: Approve running this command?"
 
 let context = LAContext()
 var error: NSError?

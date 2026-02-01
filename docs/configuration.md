@@ -67,7 +67,7 @@ issuer = "veto"       # Shown in authenticator app
 # Touch ID — macOS only
 [auth.touchid]
 enabled = true
-prompt = "Authorize veto operation"
+prompt = "Veto: Approve running this command?"
 
 # Telegram — async approval via bot
 [auth.telegram]
