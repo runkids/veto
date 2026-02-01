@@ -15,6 +15,7 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
   <a href="https://github.com/runkids/veto/releases"><img src="https://img.shields.io/github/v/release/runkids/veto?display_name=tag&sort=semver" alt="Release"></a>
   <a href="https://github.com/runkids/veto/releases"><img src="https://img.shields.io/github/downloads/runkids/veto/total" alt="Downloads"></a>
+  <img src="https://img.shields.io/badge/rust-🦀-orange" alt="Rust">
 </p>
 
 ---
@@ -29,6 +30,38 @@ veto setup claude   # or: gemini / cursor / opencode
 ```
 
 Your AI now asks before it destroys.
+
+<details>
+<summary>How does it work?</summary>
+
+```
++-----------+     +-----------+     +-----------+
+| AI Agent  |---->| veto gate |---->| Terminal  |
++-----------+     +-----+-----+     +-----------+
+                        |
+                  +-----v-----+
+                  | Risk Check|
+                  +-----+-----+
+                        |
+        +---------------+---------------+
+        |               |               |
+        v               v               v
+   +--------+      +--------+      +--------+
+   |  Low   |      |  High  |      |Critical|
+   | [pass] |      |[auth]  |      |[block] |
+   +--------+      +--------+      +--------+
+```
+
+`veto setup` adds a hook to your AI tool's config:
+
+| Tool | Config Location |
+|------|-----------------|
+| Claude Code | `~/.claude/settings.json` |
+| Gemini CLI | `~/.gemini/settings.json` |
+| Cursor CLI | `.cursor/hooks.json` |
+| OpenCode | `~/.opencode/plugins/` |
+
+</details>
 
 ---
 
