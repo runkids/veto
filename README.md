@@ -1,6 +1,6 @@
 <p align="center">
   <h1 align="center">veto</h1>
-  <p align="center">🔑 The <code>sudo</code> command for AI Agents</p>
+  <p align="center">🛡️ Human-in-the-loop confirmation for AI Agents</p>
 </p>
 
 <p align="center">
@@ -78,6 +78,27 @@ Your AI now asks before it destroys.
   <a href="docs/configuration.md">Config</a> ·
   <a href="docs/rules.md">Rules</a>
 </p>
+
+---
+
+## Philosophy
+
+**veto is a UX layer, not a security sandbox.**
+
+| What veto IS | What veto is NOT |
+|--------------|------------------|
+| Human-in-the-loop for AI agents | A replacement for OS sandboxing |
+| "Are you sure?" before `rm -rf` | Comprehensive security solution |
+| Pattern-based risk detection | Bulletproof malware defense |
+| 10-second setup | Complex security infrastructure |
+
+> *"But can't I just use sudo?"*
+>
+> `sudo` gates **privilege escalation**. AI agents run as *you* — they don't need root to `rm -rf ~/Documents`. veto gates **agent actions**, not permissions.
+
+> *"Heuristics can be bypassed!"*
+>
+> True. veto catches the 99% case: AI confidently running `git push --force` or `terraform destroy`. It's a seatbelt, not an airbag — and most accidents don't need an airbag.
 
 ---
 
