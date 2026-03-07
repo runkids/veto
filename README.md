@@ -26,7 +26,7 @@ Just:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/runkids/veto/main/install.sh | bash
-veto setup claude   # or: gemini / cursor / opencode
+veto setup claude
 ```
 
 Your AI now asks before it destroys.
@@ -57,9 +57,6 @@ Your AI now asks before it destroys.
 | Tool | Config Location |
 |------|-----------------|
 | Claude Code | `~/.claude/settings.json` |
-| Gemini CLI | `~/.gemini/settings.json` |
-| Cursor CLI | `.cursor/hooks.json` |
-| OpenCode | `~/.opencode/plugins/` |
 
 </details>
 
@@ -74,7 +71,6 @@ Your AI now asks before it destroys.
 <p align="center">
   <a href="docs/installation.md">Install</a> ·
   <a href="docs/claude-code.md">Claude Code</a> ·
-  <a href="docs/geminicli.md">Gemini CLI</a> ·
   <a href="docs/configuration.md">Config</a> ·
   <a href="docs/rules.md">Rules</a>
 </p>
@@ -104,7 +100,7 @@ Your AI now asks before it destroys.
 
 <p align="center">
   <strong>Works with</strong><br>
-  Claude Code · Gemini CLI · Cursor CLI · OpenCode
+  Claude Code
 </p>
 
 <p align="center">

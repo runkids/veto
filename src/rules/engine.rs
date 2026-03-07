@@ -79,16 +79,14 @@ impl RulesEngine {
             // Only split if not inside quotes
             if !in_single_quote && !in_double_quote {
                 // Check for && or ||
-                if c == '&' || c == '|' {
-                    if chars.peek() == Some(&c) {
-                        chars.next(); // consume second char
-                        let trimmed = current.trim().to_string();
-                        if !trimmed.is_empty() {
-                            parts.push(trimmed);
-                        }
-                        current = String::new();
-                        continue;
+                if (c == '&' || c == '|') && chars.peek() == Some(&c) {
+                    chars.next(); // consume second char
+                    let trimmed = current.trim().to_string();
+                    if !trimmed.is_empty() {
+                        parts.push(trimmed);
                     }
+                    current = String::new();
+                    continue;
                 }
 
                 // Check for ;

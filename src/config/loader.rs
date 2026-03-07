@@ -5,6 +5,7 @@ use super::Config;
 use crate::rules::{default_rules, Rules};
 
 #[derive(Error, Debug)]
+#[allow(clippy::enum_variant_names)]
 pub enum ConfigError {
     #[error("Failed to read config: {0}")]
     ReadError(#[from] std::io::Error),

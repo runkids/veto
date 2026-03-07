@@ -113,7 +113,7 @@ fn can_write_to_exe(path: &PathBuf) -> bool {
 }
 
 /// Download a file to a temporary location
-fn download_file(url: &str, dest: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
+fn download_file(url: &str, dest: &std::path::Path) -> Result<(), Box<dyn std::error::Error>> {
     let status = Command::new("curl")
         .args(["-sL", "-o", dest.to_str().unwrap(), url])
         .status()?;
@@ -127,8 +127,8 @@ fn download_file(url: &str, dest: &PathBuf) -> Result<(), Box<dyn std::error::Er
 
 /// Extract tarball to a directory
 fn extract_tarball(
-    tarball: &PathBuf,
-    dest_dir: &PathBuf,
+    tarball: &std::path::Path,
+    dest_dir: &std::path::Path,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let status = Command::new("tar")
         .args([

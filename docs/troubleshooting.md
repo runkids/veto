@@ -25,8 +25,6 @@ This checks:
 - Authentication methods
 - Keyring/secret storage
 - Claude Code integration
-- Gemini CLI integration
-- Cursor CLI integration
 - Binary accessibility
 
 ### Check Specific Command
@@ -131,62 +129,6 @@ cat ~/.claude/settings.json | jq '.hooks'
 ```bash
 veto setup claude --uninstall
 veto setup claude
-```
-
-## Gemini CLI Integration
-
-### Hooks Not Working
-
-1. Verify installation:
-
-```bash
-veto doctor
-# Gemini CLI Integration:
-#   settings.json: found
-#   veto hooks configured
-```
-
-2. Restart Gemini CLI after setup
-
-3. Check settings.json manually:
-
-```bash
-cat ~/.gemini/settings.json | jq '.hooks'
-```
-
-### Reinstall Hooks
-
-```bash
-veto setup gemini --uninstall
-veto setup gemini
-```
-
-## Cursor CLI Integration
-
-### Hooks Not Working
-
-1. Verify installation:
-
-```bash
-veto doctor
-# Cursor CLI Integration:
-#   hooks.json: found
-#   veto hooks configured
-```
-
-2. Restart Cursor CLI after setup
-
-3. Check hooks.json manually:
-
-```bash
-cat ~/.cursor/hooks.json | jq '.hooks'
-```
-
-### Reinstall Hooks
-
-```bash
-veto setup cursor --uninstall
-veto setup cursor
 ```
 
 ## FAQ

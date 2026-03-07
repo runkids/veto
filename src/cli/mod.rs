@@ -100,24 +100,12 @@ pub struct LogArgs {
 
 #[derive(Args)]
 pub struct GateArgs {
-    /// Command to verify (optional if using --claude/--gemini/--cursor)
+    /// Command to verify (optional if using --claude)
     pub command: Option<String>,
 
     /// Read command from Claude Code stdin JSON format
-    #[arg(long, conflicts_with_all = ["command", "opencode", "gemini", "cursor"])]
+    #[arg(long, conflicts_with = "command")]
     pub claude: bool,
-
-    /// Read command from Gemini CLI stdin JSON format
-    #[arg(long, conflicts_with_all = ["command", "opencode", "claude", "cursor"])]
-    pub gemini: bool,
-
-    /// OpenCode mode - use dialog/touchid auth, don't suggest env var bypass
-    #[arg(long, conflicts_with_all = ["claude", "gemini", "cursor"])]
-    pub opencode: bool,
-
-    /// Cursor CLI mode - read command from stdin JSON and return hooks response
-    #[arg(long, conflicts_with_all = ["claude", "gemini", "opencode"])]
-    pub cursor: bool,
 
     /// File operation mode (for write_file/edit_file hooks)
     #[arg(long)]
@@ -141,24 +129,6 @@ pub enum SetupCommands {
     /// Setup Claude Code hooks integration
     Claude {
         /// Remove veto hooks from Claude Code
-        #[arg(long)]
-        uninstall: bool,
-    },
-    /// Setup Gemini CLI hooks integration
-    Gemini {
-        /// Remove veto hooks from Gemini CLI
-        #[arg(long)]
-        uninstall: bool,
-    },
-    /// Setup OpenCode plugin integration
-    Opencode {
-        /// Remove veto plugin from OpenCode
-        #[arg(long)]
-        uninstall: bool,
-    },
-    /// Setup Cursor CLI hooks integration
-    Cursor {
-        /// Remove veto hook from Cursor CLI
         #[arg(long)]
         uninstall: bool,
     },

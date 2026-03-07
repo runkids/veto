@@ -34,27 +34,13 @@ If you use Claude Code, enable hooks:
 veto setup claude
 ```
 
-If you use Gemini CLI, enable hooks:
-
-```bash
-veto setup gemini
-```
-
-If you use Cursor CLI, enable hooks:
-
-```bash
-veto setup cursor
-```
-
 Verify everything is wired correctly:
 
 ```bash
 veto doctor
 ```
 
-Claude-specific details: [Claude Code integration](claude-code.md).
-Gemini-specific details: [Gemini CLI integration](geminicli.md).
-Cursor-specific details: [Cursor CLI integration](cursorcli.md).
+Details: [Claude Code integration](claude-code.md).
 
 ## Uninstall
 
@@ -66,9 +52,6 @@ This removes:
 - veto binary (from PATH)
 - Config directory (`~/.veto`)
 - Claude Code hooks
-- Gemini CLI hooks
-- Cursor CLI hooks
-- OpenCode plugin
 
 Keychain secrets (PIN, TOTP, Telegram) are preserved by default. To remove everything:
 

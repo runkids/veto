@@ -20,6 +20,7 @@ pub struct AuditEntry {
 }
 
 /// Result of the command evaluation
+#[allow(dead_code)]
 pub enum AuditResult {
     Allowed,
     Denied,

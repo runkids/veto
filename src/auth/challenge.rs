@@ -180,10 +180,8 @@ pub fn notify_challenge(challenge: &Challenge, command: &str) -> Result<(), Auth
     }
 
     // Try Telegram notification if configured
-    if SecureKeyring::has_telegram() {
-        if send_telegram_notification(challenge, command).is_ok() {
-            telegram_ok = true;
-        }
+    if SecureKeyring::has_telegram() && send_telegram_notification(challenge, command).is_ok() {
+        telegram_ok = true;
     }
 
     // At least one notification method must succeed

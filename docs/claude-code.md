@@ -264,15 +264,3 @@ For a manual test, include stdin JSON:
 echo '{"tool_input":{"command":"rm -rf /"}}' | veto gate --claude --totp 123456
 ```
 
-## Other AI Tools
-
-veto supports multiple AI coding assistants:
-
-| Tool | Integration | Command |
-|------|-------------|---------|
-| Claude Code | ✅ Supported | `veto setup claude` |
-| Gemini CLI | ✅ Supported | `veto setup gemini` |
-| OpenCode | ✅ Supported | `veto setup opencode` |
-| Cursor CLI | ✅ Supported | `veto setup cursor` |
-
-See [Gemini CLI Integration](geminicli.md), [OpenCode Integration](opencode.md), and [Cursor CLI Integration](cursorcli.md) for setup details.

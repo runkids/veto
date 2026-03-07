@@ -162,7 +162,7 @@ fn handle_builtin(command: &str) -> bool {
 
     match parts.first() {
         Some(&"cd") => {
-            let target = parts.get(1).map(|s| *s).unwrap_or("~");
+            let target = parts.get(1).copied().unwrap_or("~");
             let path = if target == "~" || target.starts_with("~/") {
                 dirs::home_dir()
                     .map(|home| {
