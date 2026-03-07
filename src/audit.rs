@@ -140,10 +140,14 @@ pub fn was_denied_command(command: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Mutex;
+
+    static ENV_LOCK: Mutex<()> = Mutex::new(());
 
     /// Set VETO_HOME to a temp directory for test isolation.
-    /// Tests using this helper must not run in parallel (use --test-threads=1 or a mutex).
+    /// Uses a mutex to prevent parallel env var modifications.
     fn with_temp_config<F: FnOnce()>(f: F) {
+        let _guard = ENV_LOCK.lock().unwrap();
         let tmp = tempfile::tempdir().unwrap();
         unsafe {
             std::env::set_var("VETO_HOME", tmp.path());
