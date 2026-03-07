@@ -324,6 +324,12 @@ fn run_check(engine: &RulesEngine, command: &str, verbose: bool, explain: bool) 
     if explain {
         run_check_explain(engine, command, verbose);
     } else {
+        // Check allow-once
+        if commands::allow::check_allow_once(command) {
+            println!("{} {} (allow-once)", "Risk:".bold(), "ALLOW".green());
+            std::process::exit(0);
+        }
+
         let result = engine.evaluate(command);
 
         let level_colored = format_risk_level(&result.level);
@@ -546,6 +552,21 @@ fn run_gate(
     } else {
         &actual_command
     };
+    // Check allow-once before rule evaluation
+    if commands::allow::check_allow_once(eval_command) {
+        if verbose {
+            eprintln!("{} {} (allow-once)", "Risk:".bold(), "ALLOW".green());
+        }
+        output_allowed(
+            eval_command,
+            &RiskLevel::Allow,
+            "allow-once",
+            claude_mode,
+            gemini_mode,
+            cursor_mode,
+        );
+    }
+
     let result = engine.evaluate(eval_command);
 
     if verbose {
