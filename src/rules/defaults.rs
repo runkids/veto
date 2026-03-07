@@ -1,4 +1,4 @@
-use super::{Rules, Rule, Whitelist};
+use super::{Rule, Rules, Whitelist};
 
 pub fn default_rules() -> Rules {
     Rules {
@@ -141,19 +141,14 @@ pub fn default_rules() -> Rules {
         low: vec![
             Rule {
                 category: "rm".to_string(),
-                patterns: vec![
-                    "rm *".to_string(),
-                ],
+                patterns: vec!["rm *".to_string()],
                 paths: vec![],
                 reason: Some("File deletion".to_string()),
                 challenge: None,
             },
             Rule {
                 category: "network".to_string(),
-                patterns: vec![
-                    "curl*".to_string(),
-                    "wget*".to_string(),
-                ],
+                patterns: vec!["curl*".to_string(), "wget*".to_string()],
                 paths: vec![],
                 reason: Some("Network request".to_string()),
                 challenge: None,
@@ -184,6 +179,24 @@ pub fn default_rules() -> Rules {
                 "git diff*".to_string(),
                 "git branch*".to_string(),
                 "git show*".to_string(),
+                // Text processing (prevent false positives with keyword patterns)
+                "awk *".to_string(),
+                "sed *".to_string(),
+                "jq *".to_string(),
+                "sort *".to_string(),
+                "uniq *".to_string(),
+                "cut *".to_string(),
+                "tr *".to_string(),
+                "wc *".to_string(),
+                // File info (read-only)
+                "diff *".to_string(),
+                "file *".to_string(),
+                "stat *".to_string(),
+                "rg *".to_string(),
+                // Safe operations
+                "cd *".to_string(),
+                "mkdir *".to_string(),
+                "touch *".to_string(),
             ],
             paths: vec![],
         },
