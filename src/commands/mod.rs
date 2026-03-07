@@ -1,24 +1,19 @@
-mod init;
-mod doctor;
+pub mod allow;
 mod auth;
-mod shell;
-mod setup;
-mod upgrade;
+mod doctor;
+mod init;
 mod log;
+mod setup;
+mod shell;
+mod upgrade;
 
-pub use init::*;
-pub use doctor::*;
 pub use auth::*;
-pub use shell::run_shell;
-pub use setup::{
-    run_setup_claude,
-    run_setup_gemini,
-    run_setup_opencode,
-    run_setup_cursor,
-    is_claude_configured,
-    is_gemini_configured,
-    is_opencode_configured,
-    is_cursor_configured,
-};
-pub use upgrade::run_upgrade;
+pub use doctor::*;
+pub use init::*;
 pub use log::run_log;
+pub use setup::{
+    is_claude_configured, is_cursor_configured, is_gemini_configured, is_opencode_configured,
+    run_setup_claude, run_setup_cursor, run_setup_gemini, run_setup_opencode,
+};
+pub use shell::run_shell;
+pub use upgrade::run_upgrade;
