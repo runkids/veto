@@ -484,6 +484,14 @@ fn run_check_explain(engine: &RulesEngine, command: &str, verbose: bool) {
     std::process::exit(exit_code);
 }
 
+fn print_allow_hint(command: &str) {
+    eprintln!(
+        "\n{} {}",
+        "Tip:".cyan(),
+        format!("veto allow once \"{}\" to allow once", command).dimmed()
+    );
+}
+
 fn format_risk_level(level: &RiskLevel) -> colored::ColoredString {
     match level {
         RiskLevel::Allow => "ALLOW".green(),
@@ -812,6 +820,7 @@ fn run_gate(
                     eprintln!();
                     eprintln!("Retry with environment variable:");
                     eprintln!("  VETO_TOTP=<code> <command>");
+                    print_allow_hint(command);
                     std::process::exit(2);
                 }
             }
@@ -920,6 +929,7 @@ fn run_gate(
                     eprintln!();
                     eprintln!("Retry with environment variable:");
                     eprintln!("  VETO_PIN=<code> <command>");
+                    print_allow_hint(command);
                     std::process::exit(2);
                 }
             }
@@ -1244,6 +1254,7 @@ fn run_gate(
                 } else {
                     eprintln!("{}", "⚠️  AUTH_REQUIRED".red().bold());
                     eprintln!("{}", msg);
+                    print_allow_hint(command);
                     std::process::exit(2);
                 }
             }
