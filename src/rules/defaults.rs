@@ -82,6 +82,26 @@ pub fn default_rules() -> Rules {
                 reason: Some("Destructive git operation".to_string()),
                 challenge: None,
             },
+            Rule {
+                category: "shell-wrapper".to_string(),
+                patterns: vec![
+                    "bash -c *".to_string(),
+                    "bash -c*".to_string(),
+                    "sh -c *".to_string(),
+                    "sh -c*".to_string(),
+                    "zsh -c *".to_string(),
+                    "zsh -c*".to_string(),
+                    "eval *".to_string(),
+                    "exec *".to_string(),
+                    "sudo *".to_string(),
+                ],
+                paths: vec![],
+                reason: Some(
+                    "Shell wrapper can execute arbitrary commands — review wrapped content"
+                        .to_string(),
+                ),
+                challenge: None,
+            },
             // File operation rules (Gemini CLI write_file/edit_file)
             Rule {
                 category: "file-secrets".to_string(),
@@ -121,6 +141,16 @@ pub fn default_rules() -> Rules {
                 ],
                 paths: vec![],
                 reason: Some("Git operation that modifies remote".to_string()),
+                challenge: None,
+            },
+            Rule {
+                category: "command-wrapper".to_string(),
+                patterns: vec![
+                    "xargs *".to_string(),
+                    "nohup *".to_string(),
+                ],
+                paths: vec![],
+                reason: Some("Command wrapper — verify the wrapped command".to_string()),
                 challenge: None,
             },
             Rule {
