@@ -1,128 +1,83 @@
 # Troubleshooting
 
-## Common Issues
-
-| Issue | Solution |
-|-------|----------|
-| `config not found` | Run `veto init` |
-| PIN not working | Run `veto auth set-pin` to reset |
-| TOTP invalid code | Check device time sync |
-| Touch ID unavailable | macOS only; falls back to password |
-| Telegram timeout | Increase `timeout_seconds` in config |
-| Keyring errors | Check `veto doctor`; uses file fallback |
-| Repeated prompts after denial | veto now blocks retries; override with `VETO_FORCE=yes` if user explicitly approved |
-
-## Diagnostic Commands
-
-### Full System Check
+## First Step: Run Doctor
 
 ```bash
 veto doctor
 ```
 
-This checks:
-- Configuration files
-- Authentication methods
-- Keyring/secret storage
-- Claude Code integration
-- Binary accessibility
+This checks config, auth methods, keyring, Claude Code hooks, and binary access.
 
-### Check Specific Command
+Healthy output:
 
-```bash
-veto check -v "your command"
-# Shows: Risk level, Category, Reason, Pattern matched
+```
+veto Doctor
+  Configuration:
+    config.toml: found
+  Claude Code Integration:
+    settings.json: found
+    PreToolUse hook: configured
+    veto binary: accessible
+  Keyring Status:
+    Backend: system
+    Keyring test: write/read OK
 ```
 
-## Authentication Issues
+---
 
-### PIN Not Working
+## Common Issues
+
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| `config not found` | No config file | `veto init` |
+| PIN not working | Wrong or corrupted PIN | `veto auth set-pin` |
+| TOTP invalid code | Device clock out of sync | Sync device time |
+| Touch ID unavailable | Not macOS, or hardware issue | Falls back to password; set `[auth.fallback] touchid = "pin"` |
+| Telegram timeout | Bot not started or slow network | Increase `timeout_seconds`; verify with `veto auth test telegram` |
+| Keyring errors | No system keychain available | veto auto-falls back to file storage |
+| Command keeps getting blocked after denial | Deny cache active | Override with `VETO_FORCE=yes` |
+
+---
+
+## Authentication
+
+### Reset PIN
 
 ```bash
-# Reset PIN
-veto auth set-pin
-
-# Test PIN
-veto auth test pin
+veto auth set-pin    # Overwrites existing
+veto auth test pin   # Verify
 ```
 
-### TOTP Invalid Code
+### TOTP Not Working
 
 1. Check device time is synchronized
-2. Ensure you're using the correct authenticator app entry
-3. Try regenerating TOTP setup:
+2. Regenerate:
 
 ```bash
 veto auth remove totp
 veto auth setup-totp
 ```
 
-### Touch ID Not Working
+### Telegram Not Responding
 
-Touch ID is macOS only. If it fails:
-- System will fall back to password
-- Configure fallback in config:
-
-```toml
-[auth.fallback]
-touchid = "pin"
-```
-
-### Telegram Timeout
-
-1. Increase timeout in config:
+1. Make sure you tapped **Start** on your bot
+2. Verify bot token and chat_id: `veto auth test telegram`
+3. Increase timeout:
 
 ```toml
 [auth.telegram]
-timeout_seconds = 120  # 2 minutes
+timeout_seconds = 120
 ```
 
-2. Verify bot token and chat_id:
+---
 
-```bash
-veto auth test telegram
-```
-
-## Keyring Issues
-
-### Keyring Not Available
-
-veto automatically falls back to encrypted file storage. Check status:
-
-```bash
-veto doctor
-# Keyring Status:
-#   Backend: file (fallback)
-```
-
-### Linux Keyring
-
-On Linux, veto uses Secret Service (GNOME Keyring or KWallet). If not available:
-
-1. Install GNOME Keyring: `apt install gnome-keyring`
-2. Or use KWallet: `apt install kwalletmanager`
-3. Or let veto use file fallback (automatic)
-
-## Claude Code Integration
+## Claude Code Hooks
 
 ### Hooks Not Working
 
-1. Verify installation:
-
-```bash
-veto doctor
-# Claude Code Integration:
-#   settings.json: found
-#   PreToolUse hook: configured
-```
-
-2. Restart Claude Code after setup
-
-3. Check settings.json manually:
-
-```bash
-cat ~/.claude/settings.json | jq '.hooks'
-```
+1. Run `veto doctor` — check "PreToolUse hook: configured"
+2. Restart Claude Code after running `veto setup claude`
+3. Inspect manually: `cat ~/.claude/settings.json | jq '.hooks'`
 
 ### Reinstall Hooks
 
@@ -131,7 +86,30 @@ veto setup claude --uninstall
 veto setup claude
 ```
 
+---
+
+## Keyring
+
+### Linux: No System Keyring
+
+veto falls back to encrypted file storage automatically. To use a system keyring:
+
+- GNOME: `apt install gnome-keyring`
+- KDE: `apt install kwalletmanager`
+
+Check status: `veto doctor` → "Keyring Status"
+
+---
+
 ## FAQ
+
+### "But can't I just use sudo?"
+
+`sudo` gates **privilege escalation**. AI agents run as *you* — they don't need root to `rm -rf ~/Documents`. veto gates **agent actions**, not permissions.
+
+### "Heuristics can be bypassed!"
+
+True. veto catches the 99% case: AI confidently running `git push --force` or `terraform destroy`. It's a seatbelt, not an airbag — and most accidents don't need an airbag.
 
 ### How do I skip confirmation for a command?
 
@@ -142,63 +120,50 @@ Add to whitelist in `~/.veto/rules.toml`:
 commands = ["your-safe-command*"]
 ```
 
-### Can I use veto in Docker/CI?
-
-Yes. File-based keyring is used automatically when system keychain is unavailable.
-
 ### How do I see why a command was flagged?
 
 ```bash
 veto check -v "git push -f origin main"
-# Risk: HIGH
-# Category: git-destructive
-# Reason: Destructive git operation
-# Pattern: git push*-f*
 ```
 
-### Can I override auth for one command?
+### Can I use veto in Docker/CI?
 
-```bash
-veto exec --auth pin "command"      # Use PIN instead of configured
-veto exec --auth touchid "command"  # Use Touch ID
-```
+Yes. File-based keyring is used automatically.
 
 ### How do I completely reset veto?
 
 ```bash
-# Remove all config and secrets
 rm -rf ~/.veto
-
-# Reinitialize
 veto init
-```
-
-### veto is blocking a safe command. How do I allow it?
-
-Add the command pattern to your whitelist:
-
-```toml
-# ~/.veto/rules.toml
-[whitelist]
-commands = [
-    "your-command*",
-]
 ```
 
 ### How do I temporarily disable veto?
 
-Remove the Claude Code hooks:
-
 ```bash
 veto setup claude --uninstall
+# Re-enable later:
+veto setup claude
 ```
 
-Re-enable later with `veto setup claude`.
+---
+
+## Uninstall
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/runkids/veto/main/uninstall.sh | bash
+```
+
+Removes: binary, `~/.veto/`, Claude Code hooks.
+Keychain secrets preserved. To remove everything:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/runkids/veto/main/uninstall.sh | bash -s -- --purge
+```
+
+---
 
 ## Getting Help
 
-If you encounter issues not covered here:
-
-1. Run `veto doctor` and note the output
+1. Run `veto doctor` and copy the output
 2. Check [GitHub Issues](https://github.com/runkids/veto/issues)
 3. Open a new issue with diagnostic output

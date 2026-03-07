@@ -1,6 +1,6 @@
 <p align="center">
   <h1 align="center">veto</h1>
-  <p align="center">🛡️ Human-in-the-loop confirmation for AI Agents</p>
+  <p align="center">Human-in-the-loop confirmation for AI Agents</p>
 </p>
 
 <p align="center">
@@ -31,6 +31,25 @@ veto setup claude
 
 Your AI now asks before it destroys.
 
+---
+
+## Why
+
+Your AI agent runs as *you*. It doesn't need `sudo` to `rm -rf ~/Documents`.
+
+veto sits between your AI and the terminal. Dangerous command? Touch ID.
+Catastrophic command? Blocked. Safe command? Passes through silently.
+
+It's a seatbelt — not a sandbox.
+
+---
+
+<p align="center">
+  Touch ID · PIN · TOTP · Telegram
+</p>
+
+---
+
 <details>
 <summary>How does it work?</summary>
 
@@ -52,63 +71,26 @@ Your AI now asks before it destroys.
    +--------+      +--------+      +--------+
 ```
 
-`veto setup` adds a hook to your AI tool's config:
-
-| Tool | Config Location |
-|------|-----------------|
-| Claude Code | `~/.claude/settings.json` |
+`veto setup claude` adds a PreToolUse hook to `~/.claude/settings.json`.
+Every command Claude Code tries to run goes through veto first.
 
 </details>
 
 ---
 
 <p align="center">
-  👆 <strong>Touch ID</strong> · 🔢 <strong>PIN</strong> · 🔐 <strong>OTP</strong> · 📱 <strong>Telegram</strong>
+  <a href="docs/getting-started.md"><strong>Getting Started</strong></a> ·
+  <a href="docs/cookbook.md">Cookbook</a> ·
+  <a href="docs/reference.md">Reference</a> ·
+  <a href="docs/troubleshooting.md">Troubleshooting</a>
 </p>
 
 ---
 
 <p align="center">
-  <a href="docs/installation.md">Install</a> ·
-  <a href="docs/claude-code.md">Claude Code</a> ·
-  <a href="docs/configuration.md">Config</a> ·
-  <a href="docs/rules.md">Rules</a>
+  <strong>Works with</strong> Claude Code<br>
+  <strong>Runs on</strong> macOS (x86/ARM) · Linux (x86/ARM)
 </p>
-
----
-
-## Philosophy
-
-**veto is a UX layer, not a security sandbox.**
-
-| What veto IS | What veto is NOT |
-|--------------|------------------|
-| Human-in-the-loop for AI agents | A replacement for OS sandboxing |
-| "Are you sure?" before `rm -rf` | Comprehensive security solution |
-| Pattern-based risk detection | Bulletproof malware defense |
-| 10-second setup | Complex security infrastructure |
-
-> *"But can't I just use sudo?"*
->
-> `sudo` gates **privilege escalation**. AI agents run as *you* — they don't need root to `rm -rf ~/Documents`. veto gates **agent actions**, not permissions.
-
-> *"Heuristics can be bypassed!"*
->
-> True. veto catches the 99% case: AI confidently running `git push --force` or `terraform destroy`. It's a seatbelt, not an airbag — and most accidents don't need an airbag.
-
----
-
-<p align="center">
-  <strong>Works with</strong><br>
-  Claude Code
-</p>
-
-<p align="center">
-  <strong>Runs on</strong><br>
-  macOS (x86/ARM) · Linux (x86/ARM)
-</p>
-
----
 
 <p align="center">
   <sub>Built with Rust.</sub>
