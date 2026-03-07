@@ -67,3 +67,29 @@ pub struct RiskResult {
     /// Whether this rule requires challenge-response authentication
     pub challenge: bool,
 }
+
+/// Single rule evaluation result in a trace
+#[derive(Debug, Clone)]
+pub struct ExplainEntry {
+    pub level: RiskLevel,
+    pub category: String,
+    pub pattern: String,
+    pub matched: bool,
+    pub reason: Option<String>,
+}
+
+/// Trace for a single (sub)command evaluation
+#[derive(Debug, Clone)]
+pub struct SubcommandTrace {
+    pub command: String,
+    pub whitelist_match: Option<String>,
+    pub entries: Vec<ExplainEntry>,
+    pub result: RiskResult,
+}
+
+/// Full explain output
+#[derive(Debug, Clone)]
+pub struct ExplainResult {
+    pub subcommands: Vec<SubcommandTrace>,
+    pub final_result: RiskResult,
+}

@@ -1,5 +1,5 @@
-use clap::{Args, Parser, Subcommand};
 use crate::commands::AuthCommands;
+use clap::{Args, Parser, Subcommand};
 
 #[derive(Parser)]
 #[command(name = "veto")]
@@ -24,6 +24,10 @@ pub enum Commands {
     Check {
         /// Command to check
         command: String,
+
+        /// Show full decision trace
+        #[arg(long)]
+        explain: bool,
     },
     /// Verify and execute command
     Exec {

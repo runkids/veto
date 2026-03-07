@@ -1,5 +1,5 @@
+use super::{ExplainEntry, ExplainResult, RiskLevel, RiskResult, Rule, Rules, SubcommandTrace};
 use glob::Pattern;
-use super::{RiskLevel, RiskResult, Rules, Rule};
 
 pub struct RulesEngine {
     rules: Rules,
@@ -24,7 +24,9 @@ impl RulesEngine {
             match &highest_result {
                 None => highest_result = Some(result),
                 Some(current) => {
-                    if self.risk_level_priority(&result.level) > self.risk_level_priority(&current.level) {
+                    if self.risk_level_priority(&result.level)
+                        > self.risk_level_priority(&current.level)
+                    {
                         highest_result = Some(result);
                     }
                 }
@@ -161,6 +163,120 @@ impl RulesEngine {
         }
     }
 
+    pub fn evaluate_with_trace(&self, command: &str) -> ExplainResult {
+        let subcommands = self.split_compound_command(command);
+        let mut traces = Vec::new();
+        let mut highest_result: Option<RiskResult> = None;
+
+        for subcmd in &subcommands {
+            let trace = self.evaluate_single_with_trace(subcmd);
+
+            match &highest_result {
+                None => highest_result = Some(trace.result.clone()),
+                Some(current) => {
+                    if self.risk_level_priority(&trace.result.level)
+                        > self.risk_level_priority(&current.level)
+                    {
+                        highest_result = Some(trace.result.clone());
+                    }
+                }
+            }
+            traces.push(trace);
+        }
+
+        let final_result = highest_result.unwrap_or(RiskResult {
+            level: RiskLevel::Allow,
+            category: None,
+            reason: Some("No matching rules".to_string()),
+            matched_pattern: None,
+            challenge: false,
+        });
+
+        ExplainResult {
+            subcommands: traces,
+            final_result,
+        }
+    }
+
+    fn evaluate_single_with_trace(&self, command: &str) -> SubcommandTrace {
+        let mut entries = Vec::new();
+
+        // Check whitelist
+        let whitelist_match = self.find_whitelist_match(command);
+        if whitelist_match.is_some() {
+            return SubcommandTrace {
+                command: command.to_string(),
+                whitelist_match,
+                entries,
+                result: RiskResult {
+                    level: RiskLevel::Allow,
+                    category: Some("whitelist".to_string()),
+                    reason: Some("Command is whitelisted".to_string()),
+                    matched_pattern: None,
+                    challenge: false,
+                },
+            };
+        }
+
+        // Check all levels, collecting trace
+        let levels: &[(RiskLevel, &[Rule])] = &[
+            (RiskLevel::Critical, &self.rules.critical),
+            (RiskLevel::High, &self.rules.high),
+            (RiskLevel::Medium, &self.rules.medium),
+            (RiskLevel::Low, &self.rules.low),
+        ];
+
+        let mut matched_result: Option<RiskResult> = None;
+
+        for (level, rules) in levels {
+            for rule in *rules {
+                for pattern in &rule.patterns {
+                    let matched = self.glob_match(pattern, command);
+                    entries.push(ExplainEntry {
+                        level: *level,
+                        category: rule.category.clone(),
+                        pattern: pattern.clone(),
+                        matched,
+                        reason: rule.reason.clone(),
+                    });
+                    if matched && matched_result.is_none() {
+                        matched_result = Some(RiskResult {
+                            level: *level,
+                            category: Some(rule.category.clone()),
+                            reason: rule.reason.clone(),
+                            matched_pattern: Some(pattern.clone()),
+                            challenge: rule.challenge.unwrap_or(false),
+                        });
+                    }
+                }
+            }
+        }
+
+        let result = matched_result.unwrap_or(RiskResult {
+            level: RiskLevel::Allow,
+            category: None,
+            reason: Some("No matching rules".to_string()),
+            matched_pattern: None,
+            challenge: false,
+        });
+
+        SubcommandTrace {
+            command: command.to_string(),
+            whitelist_match: None,
+            entries,
+            result,
+        }
+    }
+
+    fn find_whitelist_match(&self, command: &str) -> Option<String> {
+        for pattern in &self.rules.whitelist.commands {
+            if self.glob_match(pattern, command) {
+                return Some(pattern.clone());
+            }
+        }
+        None
+    }
+
     fn matches_whitelist(&self, command: &str) -> bool {
         for pattern in &self.rules.whitelist.commands {
             if self.glob_match(pattern, command) {
@@ -208,33 +324,27 @@ mod tests {
 
     fn create_test_rules() -> Rules {
         Rules {
-            critical: vec![
-                Rule {
-                    category: "destructive".to_string(),
-                    patterns: vec!["rm -rf /".to_string(), "rm -rf ~".to_string()],
-                    paths: vec![],
-                    reason: Some("Destructive command".to_string()),
-                    challenge: Some(true),
-                },
-            ],
-            high: vec![
-                Rule {
-                    category: "secrets".to_string(),
-                    patterns: vec!["cat *.env*".to_string()],
-                    paths: vec![],
-                    reason: Some("Secrets access".to_string()),
-                    challenge: None,
-                },
-            ],
-            medium: vec![
-                Rule {
-                    category: "git".to_string(),
-                    patterns: vec!["git push*".to_string()],
-                    paths: vec![],
-                    reason: None,
-                    challenge: None,
-                },
-            ],
+            critical: vec![Rule {
+                category: "destructive".to_string(),
+                patterns: vec!["rm -rf /".to_string(), "rm -rf ~".to_string()],
+                paths: vec![],
+                reason: Some("Destructive command".to_string()),
+                challenge: Some(true),
+            }],
+            high: vec![Rule {
+                category: "secrets".to_string(),
+                patterns: vec!["cat *.env*".to_string()],
+                paths: vec![],
+                reason: Some("Secrets access".to_string()),
+                challenge: None,
+            }],
+            medium: vec![Rule {
+                category: "git".to_string(),
+                patterns: vec!["git push*".to_string()],
+                paths: vec![],
+                reason: None,
+                challenge: None,
+            }],
             low: vec![],
             whitelist: Whitelist {
                 commands: vec!["ls".to_string(), "pwd".to_string(), "echo *".to_string()],
@@ -281,7 +391,10 @@ mod tests {
 
         // High rule has challenge = None (defaults to false)
         let result = engine.evaluate("cat .env");
-        assert!(!result.challenge, "High rule without challenge should default to false");
+        assert!(
+            !result.challenge,
+            "High rule without challenge should default to false"
+        );
     }
 
     #[test]
@@ -314,6 +427,57 @@ mod tests {
         // echo "a && b" should not be split, should allow
         let result = engine.evaluate("echo \"a && rm -rf /\"");
         assert_eq!(result.level, RiskLevel::Allow);
+    }
+
+    #[test]
+    fn test_explain_trace_whitelist() {
+        let engine = RulesEngine::new(create_test_rules());
+        let result = engine.evaluate_with_trace("ls");
+        assert_eq!(result.subcommands.len(), 1);
+        assert!(result.subcommands[0].whitelist_match.is_some());
+        assert_eq!(result.final_result.level, RiskLevel::Allow);
+    }
+
+    #[test]
+    fn test_explain_trace_match() {
+        let engine = RulesEngine::new(create_test_rules());
+        let result = engine.evaluate_with_trace("rm -rf /");
+        assert_eq!(result.subcommands.len(), 1);
+        let trace = &result.subcommands[0];
+        assert!(trace.whitelist_match.is_none());
+        assert!(!trace.entries.is_empty());
+        assert!(trace.entries.iter().any(|e| e.matched));
+        assert_eq!(result.final_result.level, RiskLevel::Critical);
+    }
+
+    #[test]
+    fn test_explain_trace_compound() {
+        let engine = RulesEngine::new(create_test_rules());
+        let result = engine.evaluate_with_trace("echo hello && rm -rf /");
+        assert_eq!(result.subcommands.len(), 2);
+        assert_eq!(result.subcommands[0].result.level, RiskLevel::Allow);
+        assert_eq!(result.subcommands[1].result.level, RiskLevel::Critical);
+        assert_eq!(result.final_result.level, RiskLevel::Critical);
+    }
+
+    #[test]
+    fn test_explain_trace_whitelisted_command() {
+        let engine = RulesEngine::new(create_test_rules());
+        let result = engine.evaluate_with_trace("pwd");
+        assert_eq!(result.subcommands.len(), 1);
+        let trace = &result.subcommands[0];
+        assert!(trace.whitelist_match.is_some());
+        assert_eq!(result.final_result.level, RiskLevel::Allow);
+    }
+
+    #[test]
+    fn test_explain_trace_unknown_command() {
+        let engine = RulesEngine::new(create_test_rules());
+        let result = engine.evaluate_with_trace("foo bar");
+        let trace = &result.subcommands[0];
+        assert!(trace.whitelist_match.is_none());
+        assert!(trace.entries.iter().all(|e| !e.matched));
+        assert_eq!(result.final_result.level, RiskLevel::Allow);
     }
 
     #[test]
