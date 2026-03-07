@@ -2,7 +2,7 @@ use std::path::PathBuf;
 use thiserror::Error;
 
 use super::Config;
-use crate::rules::{Rules, default_rules};
+use crate::rules::{default_rules, Rules};
 
 #[derive(Error, Debug)]
 pub enum ConfigError {
@@ -60,22 +60,63 @@ pub fn load_rules() -> Rules {
         }
     };
 
-    // Merge: user rules first (higher priority), then defaults
+    // Load additional allowlist files (global + project)
+    let allowlist = load_allowlist();
+
+    // Merge: user rules first (higher priority), then defaults, plus allowlist
     Rules {
         critical: [user_rules.critical, defaults.critical].concat(),
         high: [user_rules.high, defaults.high].concat(),
         medium: [user_rules.medium, defaults.medium].concat(),
         low: [user_rules.low, defaults.low].concat(),
         whitelist: crate::rules::Whitelist {
-            commands: [user_rules.whitelist.commands, defaults.whitelist.commands].concat(),
-            paths: [user_rules.whitelist.paths, defaults.whitelist.paths].concat(),
+            commands: [user_rules.whitelist.commands, defaults.whitelist.commands, allowlist.commands].concat(),
+            paths: [user_rules.whitelist.paths, defaults.whitelist.paths, allowlist.paths].concat(),
         },
+    }
+}
+
+#[derive(serde::Deserialize)]
+struct AllowlistFile {
+    #[serde(default)]
+    whitelist: crate::rules::Whitelist,
+}
+
+fn read_allowlist_file(path: &std::path::Path) -> Option<crate::rules::Whitelist> {
+    if !path.exists() {
+        return None;
+    }
+    let content = std::fs::read_to_string(path).ok()?;
+    let file: AllowlistFile = toml::from_str(&content).ok()?;
+    Some(file.whitelist)
+}
+
+/// Public wrapper for `read_allowlist_file`, needed by the list command.
+pub fn read_allowlist_file_pub(path: &std::path::Path) -> Option<crate::rules::Whitelist> {
+    read_allowlist_file(path)
+}
+
+/// Load allowlist from global (~/.veto/allowlist.toml) and project (.veto/allowlist.toml),
+/// returning the union of both as a single `Whitelist`.
+pub fn load_allowlist() -> crate::rules::Whitelist {
+    let global_path = get_config_dir().join("allowlist.toml");
+    let project_path = PathBuf::from(".veto/allowlist.toml");
+
+    let global = read_allowlist_file(&global_path).unwrap_or_default();
+    let project = read_allowlist_file(&project_path).unwrap_or_default();
+
+    crate::rules::Whitelist {
+        commands: [global.commands, project.commands].concat(),
+        paths: [global.paths, project.paths].concat(),
     }
 }
 
 /// Update Telegram configuration in config.toml
 /// This preserves existing config and only updates/adds the telegram section
-pub fn update_telegram_config(chat_id: &str, timeout_seconds: Option<u32>) -> Result<(), ConfigError> {
+pub fn update_telegram_config(
+    chat_id: &str,
+    timeout_seconds: Option<u32>,
+) -> Result<(), ConfigError> {
     let config_path = get_config_dir().join("config.toml");
 
     let content = if config_path.exists() {
@@ -85,7 +126,8 @@ pub fn update_telegram_config(chat_id: &str, timeout_seconds: Option<u32>) -> Re
     };
 
     // Parse as toml_edit to preserve formatting and comments
-    let mut doc = content.parse::<toml_edit::DocumentMut>()
+    let mut doc = content
+        .parse::<toml_edit::DocumentMut>()
         .map_err(|e| ConfigError::EditError(e.to_string()))?;
 
     // Ensure [auth] section exists
@@ -120,6 +162,13 @@ mod tests {
     fn test_load_empty_config() {
         let config = Config::default();
         assert!(config.auth.is_none());
+    }
+
+    #[test]
+    fn test_load_allowlist_runs() {
+        let result = load_allowlist();
+        // Just verify it doesn't panic - actual file loading is integration tested
+        let _ = result;
     }
 
     #[test]
