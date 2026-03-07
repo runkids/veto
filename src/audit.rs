@@ -136,3 +136,103 @@ pub fn was_denied_command(command: &str) -> bool {
     let entries: Vec<String> = serde_json::from_str(&content).unwrap_or_default();
     entries.iter().any(|c| c == command)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Set VETO_HOME to a temp directory for test isolation.
+    /// Tests using this helper must not run in parallel (use --test-threads=1 or a mutex).
+    fn with_temp_config<F: FnOnce()>(f: F) {
+        let tmp = tempfile::tempdir().unwrap();
+        unsafe {
+            std::env::set_var("VETO_HOME", tmp.path());
+        }
+        f();
+        unsafe {
+            std::env::remove_var("VETO_HOME");
+        }
+    }
+
+    #[test]
+    fn test_log_and_read() {
+        with_temp_config(|| {
+            let entry = AuditEntry {
+                command: "rm -rf /".to_string(),
+                risk_level: RiskLevel::Critical,
+                result: AuditResult::Blocked,
+                auth_method: Some("touchid".to_string()),
+            };
+            log_audit(&entry);
+
+            let lines = read_audit_log().unwrap();
+            assert_eq!(lines.len(), 1);
+            let line = &lines[0];
+            assert!(line.contains("BLOCKED"), "should contain BLOCKED");
+            assert!(line.contains("CRITICAL"), "should contain CRITICAL");
+            assert!(line.contains("touchid"), "should contain touchid");
+            assert!(line.contains("rm -rf /"), "should contain command");
+        });
+    }
+
+    #[test]
+    fn test_read_empty_log() {
+        with_temp_config(|| {
+            let lines = read_audit_log().unwrap();
+            assert!(lines.is_empty());
+        });
+    }
+
+    #[test]
+    fn test_clear_log() {
+        with_temp_config(|| {
+            let entry = AuditEntry {
+                command: "ls".to_string(),
+                risk_level: RiskLevel::Low,
+                result: AuditResult::Allowed,
+                auth_method: None,
+            };
+            log_audit(&entry);
+            assert!(!read_audit_log().unwrap().is_empty());
+
+            clear_audit_log().unwrap();
+            assert!(read_audit_log().unwrap().is_empty());
+        });
+    }
+
+    #[test]
+    fn test_deny_cache_round_trip() {
+        with_temp_config(|| {
+            assert!(!was_denied_command("dangerous_cmd"));
+            record_denied_command("dangerous_cmd");
+            assert!(was_denied_command("dangerous_cmd"));
+        });
+    }
+
+    #[test]
+    fn test_deny_cache_dedup() {
+        with_temp_config(|| {
+            record_denied_command("rm -rf /");
+            record_denied_command("rm -rf /");
+
+            let content = std::fs::read_to_string(get_deny_cache_path()).unwrap();
+            let entries: Vec<String> = serde_json::from_str(&content).unwrap();
+            assert_eq!(entries.len(), 1, "duplicate should not be added");
+        });
+    }
+
+    #[test]
+    fn test_deny_cache_miss() {
+        with_temp_config(|| {
+            record_denied_command("rm -rf /");
+            assert!(!was_denied_command("ls -la"));
+        });
+    }
+
+    #[test]
+    fn test_audit_result_display() {
+        assert_eq!(AuditResult::Allowed.to_string(), "ALLOWED");
+        assert_eq!(AuditResult::Denied.to_string(), "DENIED");
+        assert_eq!(AuditResult::Blocked.to_string(), "BLOCKED");
+    }
+}
