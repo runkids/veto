@@ -176,6 +176,70 @@ else
 fi
 
 # ─────────────────────────────────────────
+section "9. Compound command bypass"
+# ─────────────────────────────────────────
+
+if $VETO check "echo safe && rm -rf /" > /dev/null 2>&1; then
+    fail "check 'echo safe && rm -rf /' → blocked" "non-zero" "exit 0"
+else
+    pass "check 'echo safe && rm -rf /' → blocked (highest risk wins)"
+fi
+
+# ─────────────────────────────────────────
+section "10. File operation rules"
+# ─────────────────────────────────────────
+
+if $VETO check "write_file:/etc/passwd" > /dev/null 2>&1; then
+    fail "check 'write_file:/etc/passwd' → blocked" "non-zero" "exit 0"
+else
+    pass "check 'write_file:/etc/passwd' → blocked (critical)"
+fi
+
+# ─────────────────────────────────────────
+section "11. Git destructive operations"
+# ─────────────────────────────────────────
+
+if $VETO check "git push --force origin main" > /dev/null 2>&1; then
+    fail "check 'git push --force' → blocked" "non-zero" "exit 0"
+else
+    pass "check 'git push --force' → blocked (high)"
+fi
+
+if $VETO check "git reset --hard HEAD~5" > /dev/null 2>&1; then
+    fail "check 'git reset --hard' → blocked" "non-zero" "exit 0"
+else
+    pass "check 'git reset --hard' → blocked (high)"
+fi
+
+# ─────────────────────────────────────────
+section "12. Allowlist workflow"
+# ─────────────────────────────────────────
+
+TMPDIR2=$(mktemp -d)
+export VETO_HOME="$TMPDIR2"
+
+$VETO init --force > /dev/null 2>&1
+
+# Add a pattern to allowlist
+$VETO allow add "docker build*" --global > /dev/null 2>&1
+if $VETO allow list 2>&1 | grep -q "docker build"; then
+    pass "allowlist workflow: add + list shows pattern"
+else
+    fail "allowlist workflow: add + list" "shows pattern" "not found"
+fi
+
+# Remove the pattern
+$VETO allow remove "docker build*" --global > /dev/null 2>&1
+if $VETO allow list 2>&1 | grep -q "docker build"; then
+    fail "allowlist workflow: remove" "pattern gone" "still present"
+else
+    pass "allowlist workflow: remove clears pattern"
+fi
+
+rm -rf "$TMPDIR2"
+unset VETO_HOME
+
+# ─────────────────────────────────────────
 # Summary
 # ─────────────────────────────────────────
 echo ""
