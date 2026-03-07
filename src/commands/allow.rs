@@ -1,4 +1,5 @@
 use chrono::{DateTime, Duration, Utc};
+use colored::Colorize;
 use glob::Pattern;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -140,6 +141,167 @@ pub fn glob_match_simple(pattern: &str, text: &str) -> bool {
         return text.contains(core);
     }
     text == pattern
+}
+
+/// Add pattern to allowlist TOML file
+pub fn add_to_allowlist(pattern: &str, global: bool) -> Result<(), Box<dyn std::error::Error>> {
+    let path = if global {
+        get_config_dir().join("allowlist.toml")
+    } else {
+        std::path::PathBuf::from(".veto/allowlist.toml")
+    };
+
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+
+    let content = if path.exists() {
+        std::fs::read_to_string(&path)?
+    } else {
+        String::new()
+    };
+
+    let mut doc = content
+        .parse::<toml_edit::DocumentMut>()
+        .unwrap_or_else(|_| toml_edit::DocumentMut::new());
+
+    if !doc.contains_key("whitelist") {
+        doc["whitelist"] = toml_edit::Item::Table(toml_edit::Table::new());
+    }
+
+    let whitelist = doc["whitelist"].as_table_mut().unwrap();
+    if !whitelist.contains_key("commands") {
+        whitelist["commands"] = toml_edit::value(toml_edit::Array::new());
+    }
+
+    let commands = whitelist["commands"].as_array_mut().unwrap();
+
+    let already_exists = commands.iter().any(|v| v.as_str() == Some(pattern));
+    if already_exists {
+        println!("{} \"{}\" already in allowlist", "Skip:".yellow(), pattern);
+        return Ok(());
+    }
+
+    commands.push(pattern);
+    std::fs::write(&path, doc.to_string())?;
+
+    let layer = if global { "global" } else { "project" };
+    println!(
+        "{} \"{}\" → {} allowlist",
+        "Added:".green().bold(),
+        pattern,
+        layer
+    );
+    Ok(())
+}
+
+/// Remove pattern from allowlist TOML file
+pub fn remove_from_allowlist(
+    pattern: &str,
+    global: bool,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let path = if global {
+        get_config_dir().join("allowlist.toml")
+    } else {
+        std::path::PathBuf::from(".veto/allowlist.toml")
+    };
+
+    if !path.exists() {
+        println!("{} allowlist file not found", "Error:".red());
+        return Ok(());
+    }
+
+    let content = std::fs::read_to_string(&path)?;
+    let mut doc = content
+        .parse::<toml_edit::DocumentMut>()
+        .map_err(|e| format!("Failed to parse allowlist: {}", e))?;
+
+    if let Some(whitelist) = doc.get_mut("whitelist").and_then(|w| w.as_table_mut()) {
+        if let Some(commands) = whitelist.get_mut("commands").and_then(|c| c.as_array_mut()) {
+            let before = commands.len();
+            commands.retain(|v| v.as_str() != Some(pattern));
+            if commands.len() < before {
+                std::fs::write(&path, doc.to_string())?;
+                let layer = if global { "global" } else { "project" };
+                println!(
+                    "{} \"{}\" from {} allowlist",
+                    "Removed:".green().bold(),
+                    pattern,
+                    layer
+                );
+                return Ok(());
+            }
+        }
+    }
+
+    println!("{} \"{}\" not found in allowlist", "Error:".red(), pattern);
+    Ok(())
+}
+
+/// List all allowlist entries with source labels
+pub fn list_allowlist() {
+    let global_path = get_config_dir().join("allowlist.toml");
+    let project_path = std::path::PathBuf::from(".veto/allowlist.toml");
+
+    let mut found = false;
+
+    // Global
+    if let Some(wl) = crate::config::loader::read_allowlist_file_pub(&global_path) {
+        if !wl.commands.is_empty() {
+            println!("{}", "Global (~/.veto/allowlist.toml):".bold());
+            for cmd in &wl.commands {
+                println!("  {}", cmd);
+            }
+            found = true;
+        }
+    }
+
+    // Project
+    if let Some(wl) = crate::config::loader::read_allowlist_file_pub(&project_path) {
+        if !wl.commands.is_empty() {
+            if found {
+                println!();
+            }
+            println!("{}", "Project (.veto/allowlist.toml):".bold());
+            for cmd in &wl.commands {
+                println!("  {}", cmd);
+            }
+            found = true;
+        }
+    }
+
+    // Allow-once
+    let once_entries = load_allow_once();
+    let now = chrono::Utc::now();
+    let active: Vec<_> = once_entries
+        .iter()
+        .filter(|e| match e.expires_at {
+            Some(exp) => now <= exp,
+            None => true,
+        })
+        .collect();
+
+    if !active.is_empty() {
+        if found {
+            println!();
+        }
+        println!("{}", "Temporary (allow-once):".bold());
+        for entry in &active {
+            let label = if entry.one_shot {
+                "one-shot".to_string()
+            } else if let Some(exp) = entry.expires_at {
+                format!("expires {}", exp.format("%Y-%m-%d %H:%M UTC"))
+            } else {
+                "permanent".to_string()
+            };
+            println!("  {} ({})", entry.command, label.dimmed());
+        }
+        found = true;
+    }
+
+    if !found {
+        println!("{}", "No allowlist entries found.".dimmed());
+    }
 }
 
 #[cfg(test)]

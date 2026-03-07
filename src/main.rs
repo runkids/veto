@@ -11,7 +11,7 @@ use auth::{
     Challenge, ConfirmAuth, DialogAuth, PinAuth, TelegramAuth, TotpAuth, TouchIdAuth,
 };
 use clap::Parser;
-use cli::{Cli, Commands, SetupCommands};
+use cli::{AllowCommands, Cli, Commands, SetupCommands};
 use colored::Colorize;
 use commands::{
     run_auth_command, run_doctor, run_init, run_log, run_setup_claude, run_setup_cursor,
@@ -149,6 +149,12 @@ fn main() {
         }
         Commands::Log(args) => {
             if let Err(e) = run_log(args) {
+                eprintln!("{} {}", "Error:".red(), e);
+                std::process::exit(1);
+            }
+        }
+        Commands::Allow { command } => {
+            if let Err(e) = run_allow_command(command) {
                 eprintln!("{} {}", "Error:".red(), e);
                 std::process::exit(1);
             }
@@ -530,6 +536,44 @@ fn parse_env_prefix(command: &str) -> (std::collections::HashMap<String, String>
 /// 4. User provides code in chat
 /// 5. AI retries with credentials: veto gate --totp 123456 "command"
 /// 6. veto verifies → exit 0 (allow) or exit 1 (deny)
+fn run_allow_command(cmd: AllowCommands) -> Result<(), Box<dyn std::error::Error>> {
+    match cmd {
+        AllowCommands::Add { pattern, global } => {
+            commands::allow::add_to_allowlist(&pattern, global)?;
+        }
+        AllowCommands::Remove { pattern, global } => {
+            commands::allow::remove_from_allowlist(&pattern, global)?;
+        }
+        AllowCommands::List => {
+            commands::allow::list_allowlist();
+        }
+        AllowCommands::Once { command, ttl } => {
+            let ttl_seconds = match &ttl {
+                Some(t) => Some(
+                    commands::allow::parse_ttl(t)
+                        .map_err(|e| -> Box<dyn std::error::Error> { e.into() })?,
+                ),
+                None => None,
+            };
+            commands::allow::add_allow_once(&command, ttl_seconds)?;
+            if let Some(t) = &ttl {
+                println!("{} \"{}\" (TTL: {})", "Allowed:".green().bold(), command, t);
+            } else {
+                println!(
+                    "{} \"{}\" (one-shot)",
+                    "Allowed:".green().bold(),
+                    command
+                );
+            }
+        }
+        AllowCommands::Clean => {
+            let removed = commands::allow::clean_allow_once()?;
+            println!("{} {} expired entries", "Cleaned:".green().bold(), removed);
+        }
+    }
+    Ok(())
+}
+
 fn run_gate(
     engine: &RulesEngine,
     command: &str,

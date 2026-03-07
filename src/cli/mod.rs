@@ -71,6 +71,11 @@ pub enum Commands {
     },
     /// View audit log
     Log(LogArgs),
+    /// Manage command allowlist
+    Allow {
+        #[command(subcommand)]
+        command: AllowCommands,
+    },
 }
 
 #[derive(Args)]
@@ -156,4 +161,39 @@ pub enum SetupCommands {
         #[arg(long)]
         uninstall: bool,
     },
+}
+
+#[derive(Subcommand)]
+pub enum AllowCommands {
+    /// Add a pattern to the allowlist
+    Add {
+        /// Glob pattern to allow (e.g. "git push*")
+        pattern: String,
+
+        /// Add to global allowlist instead of project
+        #[arg(long)]
+        global: bool,
+    },
+    /// Remove a pattern from the allowlist
+    Remove {
+        /// Pattern to remove
+        pattern: String,
+
+        /// Remove from global allowlist
+        #[arg(long)]
+        global: bool,
+    },
+    /// List all allowlist entries
+    List,
+    /// Create a temporary one-time or time-limited exception
+    Once {
+        /// Command to allow
+        command: String,
+
+        /// Time-to-live (e.g. "1h", "24h", "30m")
+        #[arg(long)]
+        ttl: Option<String>,
+    },
+    /// Clean expired temporary exceptions
+    Clean,
 }
