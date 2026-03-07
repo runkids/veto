@@ -1,0 +1,27 @@
+{
+  "name": "veto-dev",
+  "dockerComposeFile": "docker-compose.yml",
+  "service": "devcontainer",
+  "workspaceFolder": "/workspace",
+  "postCreateCommand": ".devcontainer/setup.sh",
+  "postStartCommand": ".devcontainer/start-dev.sh",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "rust-lang.rust-analyzer",
+        "tamasfe.even-better-toml",
+        "vadimcn.vscode-lldb",
+        "serayuzgur.crates"
+      ],
+      "settings": {
+        "rust-analyzer.cargo.buildScripts.enable": true,
+        "rust-analyzer.check.command": "clippy",
+        "editor.formatOnSave": true,
+        "[rust]": {
+          "editor.defaultFormatter": "rust-lang.rust-analyzer"
+        }
+      }
+    }
+  },
+  "remoteUser": "developer"
+}

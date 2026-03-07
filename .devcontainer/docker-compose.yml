@@ -1,0 +1,24 @@
+services:
+  devcontainer:
+    build:
+      context: ..
+      dockerfile: docker/devcontainer/Dockerfile
+    container_name: veto-devcontainer
+    volumes:
+      - ..:/workspace:cached
+      - cargo-registry:/usr/local/cargo/registry
+      - cargo-git:/usr/local/cargo/git
+      - target-cache:/workspace/target
+      - dev-home:/home/developer
+    environment:
+      - RUST_BACKTRACE=1
+      - CARGO_TERM_COLOR=always
+    command: sleep infinity
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  cargo-registry:
+  cargo-git:
+  target-cache:
+  dev-home:
