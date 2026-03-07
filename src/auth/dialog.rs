@@ -3,8 +3,8 @@
 //! Uses osascript to show a native macOS dialog for confirmation.
 //! Works in non-interactive environments (hooks, background processes).
 
+use super::{AuthContext, AuthError, AuthResult, Authenticator};
 use std::process::Command;
-use super::{AuthResult, AuthError, Authenticator, AuthContext};
 
 pub struct DialogAuth;
 
@@ -16,13 +16,13 @@ impl DialogAuth {
     /// Show dialog with context information
     fn show_dialog(&self, command: &str, context: Option<&AuthContext>) -> AuthResult {
         if !self.is_available() {
-            return Err(AuthError::NotAvailable("Dialog auth is only available on macOS".to_string()));
+            return Err(AuthError::NotAvailable(
+                "Dialog auth is only available on macOS".to_string(),
+            ));
         }
 
         // Escape command for AppleScript
-        let escaped_cmd = command
-            .replace('\\', "\\\\")
-            .replace('"', "\\\"");
+        let escaped_cmd = command.replace('\\', "\\\\").replace('"', "\\\"");
 
         // Truncate long commands for display
         let display_cmd = if escaped_cmd.len() > 100 {

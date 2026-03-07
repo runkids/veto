@@ -1,6 +1,6 @@
-use dialoguer::Confirm;
+use super::{AuthError, AuthResult, Authenticator};
 use colored::Colorize;
-use super::{AuthResult, AuthError, Authenticator};
+use dialoguer::Confirm;
 
 pub struct ConfirmAuth;
 

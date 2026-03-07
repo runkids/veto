@@ -34,7 +34,9 @@ impl TotpAuth {
             6,
             1,
             30,
-            secret.to_bytes().map_err(|e| AuthError::Failed(e.to_string()))?,
+            secret
+                .to_bytes()
+                .map_err(|e| AuthError::Failed(e.to_string()))?,
             Some(issuer_str.to_string()),
             account.to_string(),
         )
@@ -127,12 +129,8 @@ impl Authenticator for TotpAuth {
                 println!("{}", "✓ TOTP verified".green());
                 Ok(true)
             }
-            Ok(false) => {
-                Err(AuthError::Failed("Invalid TOTP code".to_string()))
-            }
-            Err(e) => {
-                Err(e)
-            }
+            Ok(false) => Err(AuthError::Failed("Invalid TOTP code".to_string())),
+            Err(e) => Err(e),
         }
     }
 }
@@ -148,13 +146,14 @@ pub struct SetupResult {
 impl SetupResult {
     /// Generate QR code as a string (terminal display)
     pub fn generate_qr_terminal(&self) -> Result<String, AuthError> {
-        use qrcode::QrCode;
         use qrcode::render::unicode;
+        use qrcode::QrCode;
 
         let code = QrCode::new(&self.otpauth_url)
             .map_err(|e| AuthError::Failed(format!("Failed to generate QR code: {}", e)))?;
 
-        Ok(code.render::<unicode::Dense1x2>()
+        Ok(code
+            .render::<unicode::Dense1x2>()
             .dark_color(unicode::Dense1x2::Light)
             .light_color(unicode::Dense1x2::Dark)
             .build())
@@ -169,8 +168,7 @@ mod tests {
     #[ignore = "requires system keychain"]
     fn test_setup_and_verify() {
         // Setup
-        let result = TotpAuth::setup("test@example.com", None)
-            .expect("Failed to setup TOTP");
+        let result = TotpAuth::setup("test@example.com", None).expect("Failed to setup TOTP");
 
         assert!(!result.secret.is_empty());
         assert!(result.otpauth_url.starts_with("otpauth://totp/"));

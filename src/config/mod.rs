@@ -1,5 +1,5 @@
-mod types;
 pub mod loader;
+mod types;
 
+pub use loader::{get_config_dir, load_config};
 pub use types::*;
-pub use loader::{load_config, get_config_dir};

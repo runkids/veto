@@ -8,24 +8,24 @@
 //! - telegram: Async Telegram bot approval
 //! - challenge: Challenge-response for preventing AI replay attacks
 
-mod confirm;
-mod pin;
-mod totp;
-mod touchid;
-mod telegram;
-mod dialog;
 pub mod challenge;
+mod confirm;
+mod dialog;
 pub mod keyring;
 pub mod manager;
+mod pin;
+mod telegram;
+mod totp;
+mod touchid;
 
+pub use challenge::{notify_challenge, verify_response, Challenge};
 pub use confirm::*;
-pub use pin::*;
-pub use totp::*;
-pub use touchid::*;
-pub use telegram::*;
 pub use dialog::*;
 pub use manager::{AuthManager, AuthenticatorFactory};
-pub use challenge::{Challenge, notify_challenge, verify_response};
+pub use pin::*;
+pub use telegram::*;
+pub use totp::*;
+pub use touchid::*;
 
 use thiserror::Error;
 

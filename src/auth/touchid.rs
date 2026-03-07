@@ -5,7 +5,7 @@
 
 use colored::Colorize;
 
-use super::{AuthError, AuthResult, Authenticator, AuthContext};
+use super::{AuthContext, AuthError, AuthResult, Authenticator};
 
 /// Default prompt for Touch ID
 const DEFAULT_PROMPT: &str = "Veto: Approve running this command?";
@@ -36,7 +36,6 @@ impl TouchIdAuth {
 
         lines.join("\n")
     }
-
 
     /// Check if Touch ID is available on this system
     #[cfg(target_os = "macos")]
@@ -71,12 +70,10 @@ impl TouchIdAuth {
             .find(|p| p.exists());
 
         let output = match helper_path {
-            Some(path) => {
-                Command::new(path)
-                    .arg(prompt)
-                    .output()
-                    .map_err(|e| AuthError::Failed(format!("Touch ID helper failed: {}", e)))?
-            }
+            Some(path) => Command::new(path)
+                .arg(prompt)
+                .output()
+                .map_err(|e| AuthError::Failed(format!("Touch ID helper failed: {}", e)))?,
             None => {
                 // Fallback to inline Swift if helper not found
                 return self.do_authenticate_inline(prompt);
@@ -88,7 +85,9 @@ impl TouchIdAuth {
         if stdout.contains("AUTH_SUCCESS") {
             Ok(true)
         } else if stdout.contains("AUTH_UNAVAILABLE") {
-            Err(AuthError::NotAvailable("Biometric authentication not available".to_string()))
+            Err(AuthError::NotAvailable(
+                "Biometric authentication not available".to_string(),
+            ))
         } else {
             Err(AuthError::Cancelled)
         }
@@ -101,7 +100,8 @@ impl TouchIdAuth {
 
         let escaped_prompt = prompt.replace('"', "\\\"");
 
-        let swift_code = format!(r#"
+        let swift_code = format!(
+            r#"
 import LocalAuthentication
 import Foundation
 let context = LAContext()
@@ -124,7 +124,9 @@ if context.canEvaluatePolicy(.deviceOwnerAuthentication, error: &error) {{
 }}
 print("AUTH_UNAVAILABLE")
 exit(2)
-"#, escaped_prompt, escaped_prompt);
+"#,
+            escaped_prompt, escaped_prompt
+        );
 
         let output = Command::new("swift")
             .args(["-e", &swift_code])
@@ -136,7 +138,9 @@ exit(2)
         if stdout.contains("AUTH_SUCCESS") {
             Ok(true)
         } else if stdout.contains("AUTH_UNAVAILABLE") {
-            Err(AuthError::NotAvailable("Biometric authentication not available".to_string()))
+            Err(AuthError::NotAvailable(
+                "Biometric authentication not available".to_string(),
+            ))
         } else {
             Err(AuthError::Cancelled)
         }
@@ -144,7 +148,9 @@ exit(2)
 
     #[cfg(not(target_os = "macos"))]
     fn do_authenticate(&self, _prompt: &str) -> Result<bool, AuthError> {
-        Err(AuthError::NotAvailable("Touch ID is only available on macOS".to_string()))
+        Err(AuthError::NotAvailable(
+            "Touch ID is only available on macOS".to_string(),
+        ))
     }
 }
 

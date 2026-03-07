@@ -33,7 +33,12 @@ struct AssetInfo {
 /// Fetch the latest release information from GitHub
 fn fetch_latest_release() -> Result<ReleaseInfo, Box<dyn std::error::Error>> {
     let output = Command::new("curl")
-        .args(["-s", "-H", &format!("User-Agent: {}", USER_AGENT), GITHUB_API_URL])
+        .args([
+            "-s",
+            "-H",
+            &format!("User-Agent: {}", USER_AGENT),
+            GITHUB_API_URL,
+        ])
         .output()?;
 
     if !output.status.success() {
@@ -42,9 +47,7 @@ fn fetch_latest_release() -> Result<ReleaseInfo, Box<dyn std::error::Error>> {
 
     let json: serde_json::Value = serde_json::from_slice(&output.stdout)?;
 
-    let tag_name = json["tag_name"]
-        .as_str()
-        .ok_or("No tag_name in release")?;
+    let tag_name = json["tag_name"].as_str().ok_or("No tag_name in release")?;
 
     // Parse version from tag (remove 'v' prefix if present)
     let version_str = tag_name.strip_prefix('v').unwrap_or(tag_name);
@@ -93,7 +96,9 @@ fn find_asset_for_platform<'a>(
     os: &str,
 ) -> Option<&'a AssetInfo> {
     let target = format!("{}-{}", arch, os);
-    assets.iter().find(|a| a.name.contains(&target) && a.name.ends_with(".tar.gz"))
+    assets
+        .iter()
+        .find(|a| a.name.contains(&target) && a.name.ends_with(".tar.gz"))
 }
 
 /// Get the current executable path
@@ -121,9 +126,17 @@ fn download_file(url: &str, dest: &PathBuf) -> Result<(), Box<dyn std::error::Er
 }
 
 /// Extract tarball to a directory
-fn extract_tarball(tarball: &PathBuf, dest_dir: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
+fn extract_tarball(
+    tarball: &PathBuf,
+    dest_dir: &PathBuf,
+) -> Result<(), Box<dyn std::error::Error>> {
     let status = Command::new("tar")
-        .args(["-xzf", tarball.to_str().unwrap(), "-C", dest_dir.to_str().unwrap()])
+        .args([
+            "-xzf",
+            tarball.to_str().unwrap(),
+            "-C",
+            dest_dir.to_str().unwrap(),
+        ])
         .status()?;
 
     if !status.success() {
@@ -140,7 +153,10 @@ fn install_binary(
     use_sudo: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     if use_sudo {
-        eprintln!("{}", "Requesting elevated permissions to install...".yellow());
+        eprintln!(
+            "{}",
+            "Requesting elevated permissions to install...".yellow()
+        );
         let status = Command::new("sudo")
             .args(["cp", src.to_str().unwrap(), dest.to_str().unwrap()])
             .status()?;
@@ -263,7 +279,12 @@ pub fn run_upgrade(check_only: bool, force: bool) -> Result<(), Box<dyn std::err
     let _ = fs::remove_dir_all(&temp_dir);
 
     println!();
-    println!("{}", "✓ Successfully upgraded to version ".green().to_string() + &release.version.to_string().green().to_string() + "!");
+    println!(
+        "{}",
+        "✓ Successfully upgraded to version ".green().to_string()
+            + &release.version.to_string().green().to_string()
+            + "!"
+    );
     println!("{}", "  Run 'veto --version' to verify.".dimmed());
 
     Ok(())

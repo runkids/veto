@@ -50,7 +50,7 @@ impl AuthManager {
     /// Get authentication method for a risk level
     pub fn get_methods_for_level(&self, level: &RiskLevel) -> Vec<String> {
         let level_key = match level {
-            RiskLevel::Allow => return vec![],  // No auth needed
+            RiskLevel::Allow => return vec![], // No auth needed
             RiskLevel::Low => "low",
             RiskLevel::Medium => "medium",
             RiskLevel::High => "high",
@@ -63,7 +63,9 @@ impl AuthManager {
                 return match method {
                     AuthMethod::Single(m) => vec![m.clone()],
                     // For backwards compatibility, array configs use first element only
-                    AuthMethod::Multiple(ms) => ms.first().cloned().map(|m| vec![m]).unwrap_or_default(),
+                    AuthMethod::Multiple(ms) => {
+                        ms.first().cloned().map(|m| vec![m]).unwrap_or_default()
+                    }
                 };
             }
         }
@@ -88,9 +90,7 @@ impl AuthenticatorFactory {
             "pin" => super::keyring::SecureKeyring::has_pin(),
             "totp" => super::keyring::SecureKeyring::has_totp(),
             "touchid" => cfg!(target_os = "macos"),
-            "telegram" => {
-                super::keyring::SecureKeyring::has_telegram()
-            }
+            "telegram" => super::keyring::SecureKeyring::has_telegram(),
             _ => false,
         }
     }
@@ -116,10 +116,10 @@ mod tests {
     fn test_get_methods_for_level() {
         let mut levels = HashMap::new();
         levels.insert("low".to_string(), AuthMethod::Single("confirm".to_string()));
-        levels.insert("high".to_string(), AuthMethod::Multiple(vec![
-            "pin".to_string(),
-            "totp".to_string(),
-        ]));
+        levels.insert(
+            "high".to_string(),
+            AuthMethod::Multiple(vec!["pin".to_string(), "totp".to_string()]),
+        );
 
         let config = AuthConfig {
             default: Some("confirm".to_string()),
@@ -129,11 +129,20 @@ mod tests {
 
         let manager = AuthManager::new(config);
 
-        assert_eq!(manager.get_methods_for_level(&RiskLevel::Allow), Vec::<String>::new());
-        assert_eq!(manager.get_methods_for_level(&RiskLevel::Low), vec!["confirm"]);
+        assert_eq!(
+            manager.get_methods_for_level(&RiskLevel::Allow),
+            Vec::<String>::new()
+        );
+        assert_eq!(
+            manager.get_methods_for_level(&RiskLevel::Low),
+            vec!["confirm"]
+        );
         // For backwards compatibility, array configs use first element only
         assert_eq!(manager.get_methods_for_level(&RiskLevel::High), vec!["pin"]);
         // Medium not configured, should fall back to default
-        assert_eq!(manager.get_methods_for_level(&RiskLevel::Medium), vec!["confirm"]);
+        assert_eq!(
+            manager.get_methods_for_level(&RiskLevel::Medium),
+            vec!["confirm"]
+        );
     }
 }

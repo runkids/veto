@@ -28,7 +28,6 @@ impl ShellExecutor {
 
         Ok(status)
     }
-
 }
 
 impl Default for ShellExecutor {

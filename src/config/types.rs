@@ -32,7 +32,7 @@ impl From<RulesRiskLevel> for RiskLevel {
 pub enum AuthMethod {
     Single(String),
     #[serde(skip_serializing)]
-    Multiple(Vec<String>),  // Deprecated: only first element used
+    Multiple(Vec<String>), // Deprecated: only first element used
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]

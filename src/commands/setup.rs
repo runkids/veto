@@ -127,8 +127,7 @@ pub fn is_cursor_configured() -> bool {
 
 /// Setup Claude Code hooks integration
 pub fn run_setup_claude(uninstall: bool) -> Result<(), Box<dyn std::error::Error>> {
-    let settings_path = get_claude_settings_path()
-        .ok_or("Cannot find home directory")?;
+    let settings_path = get_claude_settings_path().ok_or("Cannot find home directory")?;
 
     println!("{}", "Setting up Claude Code integration...".bold());
     println!();
@@ -150,8 +149,7 @@ pub fn run_setup_claude(uninstall: bool) -> Result<(), Box<dyn std::error::Error
 
 /// Setup Gemini CLI hooks integration
 pub fn run_setup_gemini(uninstall: bool) -> Result<(), Box<dyn std::error::Error>> {
-    let settings_path = get_gemini_settings_path()
-        .ok_or("Cannot find home directory")?;
+    let settings_path = get_gemini_settings_path().ok_or("Cannot find home directory")?;
 
     println!("{}", "Setting up Gemini CLI integration...".bold());
     println!();
@@ -173,8 +171,7 @@ pub fn run_setup_gemini(uninstall: bool) -> Result<(), Box<dyn std::error::Error
 
 /// Setup Cursor CLI hooks integration
 pub fn run_setup_cursor(uninstall: bool) -> Result<(), Box<dyn std::error::Error>> {
-    let hooks_path = get_cursor_hooks_path()
-        .ok_or("Cannot find home directory")?;
+    let hooks_path = get_cursor_hooks_path().ok_or("Cannot find home directory")?;
 
     println!("{}", "Setting up Cursor CLI integration...".bold());
     println!();
@@ -261,18 +258,18 @@ fn add_veto_hooks(settings_path: &PathBuf) -> Result<(), Box<dyn std::error::Err
 
         // Find existing bash hook index
         let bash_hook_idx = hooks.iter().position(|h| {
-            h["matcher"].as_str() == Some("Bash") &&
-            h["hooks"]
-                .as_array()
-                .map(|inner| {
-                    inner.iter().any(|ih| {
-                        ih["command"]
-                            .as_str()
-                            .map(|c| c.contains("veto gate") && !c.contains("--file-op"))
-                            .unwrap_or(false)
+            h["matcher"].as_str() == Some("Bash")
+                && h["hooks"]
+                    .as_array()
+                    .map(|inner| {
+                        inner.iter().any(|ih| {
+                            ih["command"]
+                                .as_str()
+                                .map(|c| c.contains("veto gate") && !c.contains("--file-op"))
+                                .unwrap_or(false)
+                        })
                     })
-                })
-                .unwrap_or(false)
+                    .unwrap_or(false)
         });
 
         if let Some(idx) = bash_hook_idx {
@@ -623,8 +620,7 @@ pub fn is_opencode_configured() -> bool {
 
 /// Setup OpenCode plugin integration
 pub fn run_setup_opencode(uninstall: bool) -> Result<(), Box<dyn std::error::Error>> {
-    let plugins_path = get_opencode_plugins_path()
-        .ok_or("Cannot find home directory")?;
+    let plugins_path = get_opencode_plugins_path().ok_or("Cannot find home directory")?;
 
     println!("{}", "Setting up OpenCode integration...".bold());
     println!();

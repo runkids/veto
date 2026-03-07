@@ -2,9 +2,9 @@
 //!
 //! Logs all command evaluations to ~/.veto/audit.log
 
-use std::fs::{OpenOptions, create_dir_all};
-use std::io::Write;
 use chrono::Local;
+use std::fs::{create_dir_all, OpenOptions};
+use std::io::Write;
 
 use crate::config::loader::get_config_dir;
 use crate::rules::RiskLevel;
@@ -61,11 +61,7 @@ fn log_audit_internal(entry: &AuditEntry) -> Result<(), Box<dyn std::error::Erro
     writeln!(
         file,
         "[{}] {} {} {} {:?}",
-        timestamp,
-        entry.result,
-        risk,
-        auth,
-        entry.command
+        timestamp, entry.result, risk, auth, entry.command
     )?;
 
     Ok(())

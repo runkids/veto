@@ -79,7 +79,9 @@ impl TelegramAuth {
 
         if !result.ok {
             return Err(AuthError::Failed(
-                result.description.unwrap_or_else(|| "Unknown error".to_string()),
+                result
+                    .description
+                    .unwrap_or_else(|| "Unknown error".to_string()),
             ));
         }
 
@@ -145,10 +147,16 @@ impl TelegramAuth {
                             if msg_time >= request_time {
                                 if let Some(text) = msg.text {
                                     let text_lower = text.to_lowercase();
-                                    if text_lower.starts_with("/allow") || text_lower == "allow" || text_lower == "yes" {
+                                    if text_lower.starts_with("/allow")
+                                        || text_lower == "allow"
+                                        || text_lower == "yes"
+                                    {
                                         return Ok(true);
                                     }
-                                    if text_lower.starts_with("/deny") || text_lower == "deny" || text_lower == "no" {
+                                    if text_lower.starts_with("/deny")
+                                        || text_lower == "deny"
+                                        || text_lower == "no"
+                                    {
                                         return Ok(false);
                                     }
                                 }
@@ -194,8 +202,10 @@ impl AsyncAuthenticator for TelegramAuth {
 
         let _msg_id = self.send_message(&token, &message).await?;
 
-        eprintln!("Sent request to Telegram. Waiting for response (timeout: {}s)...",
-            self.timeout.as_secs());
+        eprintln!(
+            "Sent request to Telegram. Waiting for response (timeout: {}s)...",
+            self.timeout.as_secs()
+        );
 
         // Wait for response (only process messages after request_time)
         match self.wait_for_response(&token, request_time).await {
@@ -210,7 +220,9 @@ impl AsyncAuthenticator for TelegramAuth {
             Err(AuthError::Timeout) => {
                 eprintln!("{}", "✗ Telegram response timeout".red());
                 // Send timeout notification
-                let _ = self.send_message(&token, "⏱️ Authorization request timed out.").await;
+                let _ = self
+                    .send_message(&token, "⏱️ Authorization request timed out.")
+                    .await;
                 Err(AuthError::Timeout)
             }
             Err(e) => Err(e),

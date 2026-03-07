@@ -191,7 +191,8 @@ pub fn notify_challenge(challenge: &Challenge, command: &str) -> Result<(), Auth
         Ok(())
     } else {
         Err(AuthError::Failed(
-            "No notification method available. Install notify-send (Linux) or configure Telegram.".to_string()
+            "No notification method available. Install notify-send (Linux) or configure Telegram."
+                .to_string(),
         ))
     }
 }
@@ -231,7 +232,8 @@ fn send_desktop_notification(challenge: &Challenge) -> Result<(), AuthError> {
                 // Fallback: notify-send not available, don't print to stderr (AI can see it)
                 // User must use Telegram for secure challenge on Linux without notify-send
                 Err(AuthError::Failed(
-                    "notify-send not available. Configure Telegram for challenge notifications.".to_string()
+                    "notify-send not available. Configure Telegram for challenge notifications."
+                        .to_string(),
                 ))
             }
         }
@@ -241,7 +243,8 @@ fn send_desktop_notification(challenge: &Challenge) -> Result<(), AuthError> {
     {
         // Other platforms: require Telegram
         Err(AuthError::Failed(
-            "Desktop notifications not supported. Configure Telegram for challenge notifications.".to_string()
+            "Desktop notifications not supported. Configure Telegram for challenge notifications."
+                .to_string(),
         ))
     }
 }
@@ -310,11 +313,7 @@ pub struct ChallengeVerifyResult {
 ///
 /// For PIN auth: response = PIN + challenge (e.g., "12344827" = PIN "1234" + challenge "4827")
 /// For confirm auth: response = challenge only (e.g., "4827")
-pub fn verify_response(
-    response: &str,
-    command: &str,
-    auth_method: &str,
-) -> ChallengeVerifyResult {
+pub fn verify_response(response: &str, command: &str, auth_method: &str) -> ChallengeVerifyResult {
     // Clean up expired challenges first
     let _ = Challenge::cleanup_expired();
 
@@ -324,7 +323,10 @@ pub fn verify_response(
         _ => ChallengeVerifyResult {
             success: false,
             method: auth_method.to_string(),
-            error: Some(format!("Unsupported auth method for challenge: {}", auth_method)),
+            error: Some(format!(
+                "Unsupported auth method for challenge: {}",
+                auth_method
+            )),
         },
     }
 }

@@ -11,12 +11,12 @@ use rustyline::error::ReadlineError;
 use rustyline::DefaultEditor;
 
 use crate::auth::{
-    Authenticator, ConfirmAuth, PinAuth, TotpAuth, TouchIdAuth, TelegramAuth,
-    AuthManager, manager::AsyncAuthBridge,
+    manager::AsyncAuthBridge, AuthManager, Authenticator, ConfirmAuth, PinAuth, TelegramAuth,
+    TotpAuth, TouchIdAuth,
 };
 use crate::config::loader::load_config;
 use crate::executor::ShellExecutor;
-use crate::rules::{RulesEngine, RiskLevel, default_rules};
+use crate::rules::{default_rules, RiskLevel, RulesEngine};
 
 /// History file location
 fn history_file() -> PathBuf {
@@ -200,7 +200,10 @@ fn handle_builtin(command: &str) -> bool {
             println!("  {}       Cancel current operation", "Ctrl+C".cyan());
             println!("  {}       Exit the shell", "Ctrl+D".cyan());
             println!();
-            println!("{}", "All other commands are risk-evaluated before execution.".dimmed());
+            println!(
+                "{}",
+                "All other commands are risk-evaluated before execution.".dimmed()
+            );
             true
         }
         _ => false,

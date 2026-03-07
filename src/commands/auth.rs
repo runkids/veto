@@ -4,10 +4,7 @@ use clap::Subcommand;
 use colored::Colorize;
 use dialoguer::{Input, Password};
 
-use crate::auth::{
-    AuthenticatorFactory, PinAuth, TotpAuth, TelegramAuth,
-    keyring::SecureKeyring,
-};
+use crate::auth::{keyring::SecureKeyring, AuthenticatorFactory, PinAuth, TelegramAuth, TotpAuth};
 use crate::config::loader::load_config;
 
 #[derive(Subcommand)]
@@ -155,7 +152,10 @@ fn run_setup_totp(account: &str) -> Result<(), Box<dyn std::error::Error>> {
         Ok(false) => {
             // Try to delete on failure, ignore errors (cleanup is best-effort)
             let _ = TotpAuth::delete();
-            Err("TOTP verification failed: invalid code. Check your authenticator app time sync.".into())
+            Err(
+                "TOTP verification failed: invalid code. Check your authenticator app time sync."
+                    .into(),
+            )
         }
         Err(e) => {
             // Try to delete on failure, ignore errors (cleanup is best-effort)
@@ -196,9 +196,7 @@ fn run_setup_telegram() -> Result<(), Box<dyn std::error::Error>> {
     println!();
 
     // Get bot token
-    let token: String = Password::new()
-        .with_prompt("Enter bot token")
-        .interact()?;
+    let token: String = Password::new().with_prompt("Enter bot token").interact()?;
 
     if token.is_empty() {
         return Err("Bot token cannot be empty".into());
@@ -220,7 +218,10 @@ fn run_setup_telegram() -> Result<(), Box<dyn std::error::Error>> {
     // Now ask user to send a message to the bot
     println!();
     println!("{}", "Next step:".yellow().bold());
-    println!("  Open Telegram and send any message to {}", format!("@{}", bot_name).cyan());
+    println!(
+        "  Open Telegram and send any message to {}",
+        format!("@{}", bot_name).cyan()
+    );
     println!();
     println!("{}", "Waiting for your message...".cyan());
 
@@ -294,7 +295,10 @@ async fn clear_updates(token: &str) -> Result<(), Box<dyn std::error::Error>> {
 }
 
 /// Wait for a new message and return the chat_id
-async fn wait_for_message(token: &str, timeout_secs: u64) -> Result<String, Box<dyn std::error::Error>> {
+async fn wait_for_message(
+    token: &str,
+    timeout_secs: u64,
+) -> Result<String, Box<dyn std::error::Error>> {
     let url = format!("https://api.telegram.org/bot{}/getUpdates", token);
     let client = reqwest::Client::new();
 
@@ -340,10 +344,14 @@ async fn wait_for_message(token: &str, timeout_secs: u64) -> Result<String, Box<
 }
 
 fn run_test(method: &str) -> Result<(), Box<dyn std::error::Error>> {
-    use crate::auth::{Authenticator, ConfirmAuth, TouchIdAuth};
     use crate::auth::manager::AsyncAuthBridge;
+    use crate::auth::{Authenticator, ConfirmAuth, TouchIdAuth};
 
-    println!("{} {}", "Testing authentication method:".cyan().bold(), method);
+    println!(
+        "{} {}",
+        "Testing authentication method:".cyan().bold(),
+        method
+    );
     println!();
 
     let test_command = "veto auth test";
@@ -376,7 +384,9 @@ fn run_test(method: &str) -> Result<(), Box<dyn std::error::Error>> {
         }
         "telegram" => {
             if !SecureKeyring::has_telegram() {
-                return Err("Telegram not configured. Run 'veto auth setup-telegram' first.".into());
+                return Err(
+                    "Telegram not configured. Run 'veto auth setup-telegram' first.".into(),
+                );
             }
 
             // Get chat_id from config
@@ -456,7 +466,11 @@ fn run_list() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn run_remove(method: &str) -> Result<(), Box<dyn std::error::Error>> {
-    println!("{} {}", "Removing authentication method:".cyan().bold(), method);
+    println!(
+        "{} {}",
+        "Removing authentication method:".cyan().bold(),
+        method
+    );
 
     let confirm = dialoguer::Confirm::new()
         .with_prompt(format!("Are you sure you want to remove {}?", method))

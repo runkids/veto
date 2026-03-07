@@ -101,9 +101,8 @@ struct FileKeyring;
 impl FileKeyring {
     /// Get the secrets directory path
     fn secrets_dir() -> KeyringResult<PathBuf> {
-        let home = dirs::home_dir().ok_or_else(|| {
-            KeyringError::IoError("Cannot determine home directory".to_string())
-        })?;
+        let home = dirs::home_dir()
+            .ok_or_else(|| KeyringError::IoError("Cannot determine home directory".to_string()))?;
         Ok(home.join(".veto").join("secrets"))
     }
 
@@ -141,7 +140,10 @@ impl FileKeyring {
                 .output()
             {
                 let output_str = String::from_utf8_lossy(&output.stdout);
-                if let Some(line) = output_str.lines().find(|l| l.contains("IOPlatformSerialNumber")) {
+                if let Some(line) = output_str
+                    .lines()
+                    .find(|l| l.contains("IOPlatformSerialNumber"))
+                {
                     if let Some(serial) = line.split('"').nth(3) {
                         return serial.to_string();
                     }
@@ -160,11 +162,7 @@ impl FileKeyring {
         let machine_id = Self::get_machine_id();
         let password = format!("{}-{}", machine_id, SERVICE_NAME);
 
-        pbkdf2_hmac_array::<Sha256, 32>(
-            password.as_bytes(),
-            KEY_DERIVATION_SALT,
-            PBKDF2_ITERATIONS,
-        )
+        pbkdf2_hmac_array::<Sha256, 32>(password.as_bytes(), KEY_DERIVATION_SALT, PBKDF2_ITERATIONS)
     }
 
     /// Encrypt data
@@ -192,9 +190,7 @@ impl FileKeyring {
     /// Decrypt data
     fn decrypt(data: &[u8]) -> KeyringResult<Vec<u8>> {
         if data.len() < NONCE_SIZE {
-            return Err(KeyringError::EncryptionError(
-                "Data too short".to_string(),
-            ));
+            return Err(KeyringError::EncryptionError("Data too short".to_string()));
         }
 
         let key = Self::derive_key();
@@ -270,9 +266,7 @@ impl FileKeyring {
 
     /// Check if a secret exists
     fn exists(key: &str) -> bool {
-        Self::key_path(key)
-            .map(|p| p.exists())
-            .unwrap_or(false)
+        Self::key_path(key).map(|p| p.exists()).unwrap_or(false)
     }
 }
 
@@ -281,8 +275,8 @@ struct SystemKeyring;
 
 impl SystemKeyring {
     fn get(key: &str) -> KeyringResult<String> {
-        let entry = Entry::new(SERVICE_NAME, key)
-            .map_err(|e| KeyringError::AccessError(e.to_string()))?;
+        let entry =
+            Entry::new(SERVICE_NAME, key).map_err(|e| KeyringError::AccessError(e.to_string()))?;
 
         entry.get_password().map_err(|e| match e {
             keyring::Error::NoEntry => KeyringError::NotFound(key.to_string()),
@@ -291,8 +285,8 @@ impl SystemKeyring {
     }
 
     fn set(key: &str, value: &str) -> KeyringResult<()> {
-        let entry = Entry::new(SERVICE_NAME, key)
-            .map_err(|e| KeyringError::AccessError(e.to_string()))?;
+        let entry =
+            Entry::new(SERVICE_NAME, key).map_err(|e| KeyringError::AccessError(e.to_string()))?;
 
         entry
             .set_password(value)
@@ -311,8 +305,8 @@ impl SystemKeyring {
     }
 
     fn delete(key: &str) -> KeyringResult<()> {
-        let entry = Entry::new(SERVICE_NAME, key)
-            .map_err(|e| KeyringError::AccessError(e.to_string()))?;
+        let entry =
+            Entry::new(SERVICE_NAME, key).map_err(|e| KeyringError::AccessError(e.to_string()))?;
 
         entry.delete_credential().map_err(|e| match e {
             keyring::Error::NoEntry => KeyringError::NotFound(key.to_string()),
@@ -377,9 +371,7 @@ impl SecureKeyring {
     /// Check if a secret exists
     pub fn exists(key: &str) -> bool {
         match detect_backend() {
-            KeyringBackend::System => {
-                SystemKeyring::exists(key) || FileKeyring::exists(key)
-            }
+            KeyringBackend::System => SystemKeyring::exists(key) || FileKeyring::exists(key),
             KeyringBackend::File => FileKeyring::exists(key),
         }
     }
@@ -398,7 +390,6 @@ impl SecureKeyring {
     pub fn get_pin_hash() -> KeyringResult<String> {
         Self::get(keys::PIN_HASH)
     }
-
 
     /// Store PIN hash and salt
     pub fn set_pin(hash: &str, salt: &str) -> KeyringResult<()> {

@@ -1,11 +1,11 @@
-use std::fs;
-use std::path::PathBuf;
 use colored::Colorize;
 use dialoguer::Confirm;
+use std::fs;
+use std::path::PathBuf;
 
-use crate::config::get_config_dir;
-use crate::commands::{run_auth_command, AuthCommands};
 use crate::auth::keyring::SecureKeyring;
+use crate::commands::{run_auth_command, AuthCommands};
+use crate::config::get_config_dir;
 
 const DEFAULT_CONFIG_MACOS: &str = r#"# Veto Configuration
 # The sudo command for AI Agents
@@ -154,7 +154,11 @@ pub fn run_init(force: bool) -> Result<(), Box<dyn std::error::Error>> {
         println!("  {} {}", "Created".green(), config_path.display());
         true
     } else {
-        println!("  {} {} (use --force to overwrite)", "Exists".yellow(), config_path.display());
+        println!(
+            "  {} {} (use --force to overwrite)",
+            "Exists".yellow(),
+            config_path.display()
+        );
         false
     };
 
@@ -162,7 +166,11 @@ pub fn run_init(force: bool) -> Result<(), Box<dyn std::error::Error>> {
     if write_file_if_needed(&rules_path, DEFAULT_RULES, force)? {
         println!("  {} {}", "Created".green(), rules_path.display());
     } else {
-        println!("  {} {} (use --force to overwrite)", "Exists".yellow(), rules_path.display());
+        println!(
+            "  {} {} (use --force to overwrite)",
+            "Exists".yellow(),
+            rules_path.display()
+        );
     }
 
     if cfg!(target_os = "linux") && created_config && !SecureKeyring::has_pin() {
@@ -190,7 +198,11 @@ pub fn run_init(force: bool) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn write_file_if_needed(path: &PathBuf, content: &str, force: bool) -> Result<bool, std::io::Error> {
+fn write_file_if_needed(
+    path: &PathBuf,
+    content: &str,
+    force: bool,
+) -> Result<bool, std::io::Error> {
     if path.exists() && !force {
         return Ok(false);
     }
