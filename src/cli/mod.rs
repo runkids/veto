@@ -5,6 +5,7 @@ use clap::{Args, Parser, Subcommand};
 #[command(name = "veto")]
 #[command(about = "The sudo command for AI Agents")]
 #[command(version)]
+#[command(arg_required_else_help = true)]
 pub struct Cli {
     #[command(subcommand)]
     pub command: Commands,

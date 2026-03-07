@@ -23,7 +23,14 @@ case "${1:-help}" in
     up)
         echo "Starting devcontainer..."
         docker compose -f "$COMPOSE_FILE" up -d --build
-        echo "Ready. Run '$0 shell' to enter."
+        echo "Running setup..."
+        docker exec "$CONTAINER" bash -c '\
+            cd /workspace && \
+            touch src/main.rs && \
+            cargo build --locked --release 2>&1 && \
+            install -m 755 target/release/veto ~/.local/bin/veto && \
+            echo "veto $(veto --version 2>&1)" && \
+            echo "✓ Dev environment ready"'
         ;;
     down)
         echo "Stopping devcontainer..."
@@ -44,7 +51,14 @@ case "${1:-help}" in
         docker compose -f "$COMPOSE_FILE" down -v
         echo "Rebuilding..."
         docker compose -f "$COMPOSE_FILE" up -d --build
-        echo "Reset complete."
+        echo "Running setup..."
+        docker exec "$CONTAINER" bash -c '\
+            cd /workspace && \
+            touch src/main.rs && \
+            cargo build --locked --release 2>&1 && \
+            install -m 755 target/release/veto ~/.local/bin/veto && \
+            echo "veto $(veto --version 2>&1)" && \
+            echo "✓ Dev environment ready"'
         ;;
     status)
         docker compose -f "$COMPOSE_FILE" ps

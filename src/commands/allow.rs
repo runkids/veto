@@ -126,7 +126,10 @@ pub fn parse_ttl(ttl: &str) -> Result<i64, String> {
         "m" => Ok(value * 60),
         "h" => Ok(value * 3600),
         "d" => Ok(value * 86400),
-        _ => Err(format!("Unknown TTL suffix '{}' in '{}'. Use s/m/h/d.", suffix, ttl)),
+        _ => Err(format!(
+            "Unknown TTL suffix '{}' in '{}'. Use s/m/h/d.",
+            suffix, ttl
+        )),
     }
 }
 

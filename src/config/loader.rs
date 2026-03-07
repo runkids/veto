@@ -70,8 +70,18 @@ pub fn load_rules() -> Rules {
         medium: [user_rules.medium, defaults.medium].concat(),
         low: [user_rules.low, defaults.low].concat(),
         whitelist: crate::rules::Whitelist {
-            commands: [user_rules.whitelist.commands, defaults.whitelist.commands, allowlist.commands].concat(),
-            paths: [user_rules.whitelist.paths, defaults.whitelist.paths, allowlist.paths].concat(),
+            commands: [
+                user_rules.whitelist.commands,
+                defaults.whitelist.commands,
+                allowlist.commands,
+            ]
+            .concat(),
+            paths: [
+                user_rules.whitelist.paths,
+                defaults.whitelist.paths,
+                allowlist.paths,
+            ]
+            .concat(),
         },
     }
 }

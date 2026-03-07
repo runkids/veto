@@ -606,17 +606,6 @@ fn get_opencode_plugins_path() -> Option<PathBuf> {
     dirs::home_dir().map(|h| h.join(".config").join("opencode").join("plugins"))
 }
 
-/// Get full path to veto plugin file
-fn get_opencode_plugin_file_path() -> Option<PathBuf> {
-    get_opencode_plugins_path().map(|p| p.join(OPENCODE_PLUGIN_FILENAME))
-}
-
-/// Check if veto plugin is already configured in OpenCode
-pub fn is_opencode_configured() -> bool {
-    get_opencode_plugin_file_path()
-        .map(|p| p.exists())
-        .unwrap_or(false)
-}
 
 /// Setup OpenCode plugin integration
 pub fn run_setup_opencode(uninstall: bool) -> Result<(), Box<dyn std::error::Error>> {

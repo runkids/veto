@@ -145,10 +145,7 @@ pub fn default_rules() -> Rules {
             },
             Rule {
                 category: "command-wrapper".to_string(),
-                patterns: vec![
-                    "xargs *".to_string(),
-                    "nohup *".to_string(),
-                ],
+                patterns: vec!["xargs *".to_string(), "nohup *".to_string()],
                 paths: vec![],
                 reason: Some("Command wrapper — verify the wrapped command".to_string()),
                 challenge: None,

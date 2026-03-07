@@ -17,10 +17,7 @@ use commands::{
     run_auth_command, run_doctor, run_init, run_log, run_setup_claude, run_setup_cursor,
     run_setup_gemini, run_setup_opencode, run_shell, run_upgrade,
 };
-use config::{
-    loader::{load_config, load_rules},
-    Config,
-};
+use config::loader::{load_config, load_rules};
 use executor::ShellExecutor;
 use rules::{RiskLevel, RulesEngine};
 
@@ -567,11 +564,7 @@ fn run_allow_command(cmd: AllowCommands) -> Result<(), Box<dyn std::error::Error
             if let Some(t) = &ttl {
                 println!("{} \"{}\" (TTL: {})", "Allowed:".green().bold(), command, t);
             } else {
-                println!(
-                    "{} \"{}\" (one-shot)",
-                    "Allowed:".green().bold(),
-                    command
-                );
+                println!("{} \"{}\" (one-shot)", "Allowed:".green().bold(), command);
             }
         }
         AllowCommands::Clean => {
@@ -1609,26 +1602,3 @@ fn run_auth_chain(methods: &[String], command: &str) -> Result<(), Box<dyn std::
     Ok(())
 }
 
-/// Auto-select best available auth method
-fn auto_select_auth_method(config: &Config) -> String {
-    // Priority: telegram > touchid > dialog > totp > pin > confirm
-    if config
-        .auth
-        .as_ref()
-        .and_then(|a| a.telegram.as_ref())
-        .and_then(|t| t.chat_id.as_ref())
-        .is_some()
-    {
-        "telegram".to_string()
-    } else if TouchIdAuth::new().is_available() {
-        "touchid".to_string()
-    } else if cfg!(target_os = "macos") {
-        "dialog".to_string()
-    } else if TotpAuth::new().is_available() {
-        "totp".to_string()
-    } else if PinAuth::new().is_available() {
-        "pin".to_string()
-    } else {
-        crate::auth::default_auth_method().to_string()
-    }
-}

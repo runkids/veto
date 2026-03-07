@@ -56,9 +56,7 @@ fn check_explain_shows_trace() {
         .args(["check", "--explain", "rm -rf /"])
         .assert()
         .failure()
-        .stdout(
-            predicate::str::contains("destructive").or(predicate::str::contains("CRITICAL")),
-        );
+        .stdout(predicate::str::contains("destructive").or(predicate::str::contains("CRITICAL")));
 }
 
 #[test]
@@ -87,8 +85,5 @@ fn check_whitelist_cargo() {
 
 #[test]
 fn check_whitelist_git_status() {
-    veto()
-        .args(["check", "git status"])
-        .assert()
-        .success();
+    veto().args(["check", "git status"]).assert().success();
 }
